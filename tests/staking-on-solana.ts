@@ -1,28 +1,36 @@
 import {
-  AnchorProvider,
-  BN,
-  Program,
-  Wallet,
-  getProvider,
-  setProvider,
   web3,
   workspace,
+  AnchorProvider,
+  getProvider,
+  setProvider,
+  Wallet,
+  BN,
+  Program,
 } from "@coral-xyz/anchor";
 import {
   Account,
-  TOKEN_PROGRAM_ID,
-  createMint,
   getAccount,
   getOrCreateAssociatedTokenAccount,
+  createMint,
   mintTo,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { assert } from "chai";
 
 import { StakingOnSolana } from "../target/types/staking_on_solana";
 import { createWithSeedSync } from "@coral-xyz/anchor/dist/cjs/utils/pubkey";
 
+// Configure the client to use the local cluster.
+const provider = AnchorProvider.env();
+setProvider(provider);
+
+// @ts-ignore
+let wallet = getProvider().wallet;
+
+const program = workspace.StakingOnSolana as Program<StakingOnSolana>;
+
 describe("staking-on-solana", () => {
-  let usdcMint: web3.PublicKey;
   let stakeMint: web3.PublicKey;
   let rewardMint: web3.PublicKey;
   let creatorRewardAccount: Account;
@@ -31,72 +39,15 @@ describe("staking-on-solana", () => {
   let poolUsdcAccount: Account;
   let stakerUsdcAccount: Account;
   let poolAccount: web3.Keypair;
+  let poolStateAccount: web3.Keypair;
 
-  // Configure the client to use the local cluster.
-  const provider = AnchorProvider.env();
-  setProvider(provider);
-
-  // @ts-ignore
-  let wallet = getProvider().wallet;
-
-  const program = workspace.StakingOnSolana as Program<StakingOnSolana>;
 
   before(async () => {
-    // Create a new mint for mock USDC
-    usdcMint = await createMint(
-      provider.connection,
-      wallet.payer,
-      wallet.publicKey,
-      null,
-      6, // Assuming 6 decimal places for USDC
-      undefined,
-      undefined,
-      TOKEN_PROGRAM_ID
-    );
-
-    // Create a token account for the pool to receive USDC
-    poolUsdcAccount = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      wallet.payer,
-      usdcMint,
-      program.programId
-    );
-
-    // Create a token account for the staker
-    stakerUsdcAccount = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      wallet.payer,
-      usdcMint,
-      wallet.publicKey
-    );
-
-    // Mint some mock USDC to the staker's account
-    let signature = await mintTo(
-      provider.connection,
-      wallet.payer,
-      usdcMint,
-      stakerUsdcAccount.address,
-      wallet.publicKey,
-      BigInt(20000000) // 20 tokens of mock USDC
-    );
-    // console.log("mint tx:", signature);
-
-    // Use the provider to create a Keypair for the pool account.
-    poolAccount = web3.Keypair.generate();
-
-    // Call the initialize_pool function.
-    await program.methods
-      .initializePool()
-      .accounts({
-        pool: poolAccount.publicKey,
-        // poolList: poolListAccount,
-        user: program.provider.publicKey,
-        systemProgram: web3.SystemProgram.programId,
-      })
-      .signers([poolAccount])
-      .rpc();
   });
 
+  async function init_pool(poolId: string, rewardAmount: BN): Promise<void> {
+
+  }
 
   it("create pool_config account", async () => {
     // Create a new mint for mock stake token
@@ -157,81 +108,171 @@ describe("staking-on-solana", () => {
       program.programId
     );
 
-    const POOL_ID = "1";
-    const POOL_FEE = 5;
+    const poolId = "0"; // pool index in case creator has several pools
+    const poolFee = 5;
 
-    // Step 2 - Fetch the PDA of our Review account
+    // Fetch the PDA of pool config account
     const [POOL_CONFIG_PDA] = await web3.PublicKey.findProgramAddressSync(
-      [Buffer.from(POOL_ID), provider.wallet.publicKey.toBuffer()],
+      [Buffer.from(poolId), provider.wallet.publicKey.toBuffer()],
       program.programId
     );
 
-    console.log(`owner: ${provider.wallet.publicKey.toString()}`);
     console.log(`Pool PDA: ${POOL_CONFIG_PDA.toString()}`);
 
-    const rewardAmount = new BN(5000000); // 5 tokens of mock USDC
+    const rewardAmount = new BN(5000000); // 5 tokens of mock reward
 
-    // Step 4 - Send and Confirm the Transaction
+    // Pool State Account
+    poolStateAccount = web3.Keypair.generate();
+
     const tx = await program.methods
-      .createPoolConfig(
-        POOL_ID,
-        POOL_FEE,
+      .initializePool(
+        poolId,
+        poolFee,
         rewardAmount
       )
       .accounts({
+        poolState: poolStateAccount.publicKey,
         poolConfig: POOL_CONFIG_PDA,
         creator: wallet.publicKey,
         stakeMint: stakeMint,
         rewardMint: rewardMint,
+        poolStakeAccount: poolStakeAccount.address,
         creatorRewardAccount: creatorRewardAccount.address,
         poolRewardAccount: poolRewardAccount.address,
-        poolStakeAccount: poolStakeAccount.address,
+        systemProgram: web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
       })
+      .signers([poolStateAccount])
       .rpc();
 
-    // console.log(`https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+    console.log(`Pool Init Transaction: https://explorer.solana.com/tx/${tx}?cluster=devnet`);
 
-    // Step 5 - Fetch the data account and log results
-    const data = await program.account.poolConfig.fetch(POOL_CONFIG_PDA);
-    console.log(`pool onwer: `, data.owner);
-    console.log(`pool id: `, data.poolId);
-    console.log(`pool fee: `, data.poolFee);
-    console.log(`pool stakeMint: `, data.stakeMint);
-    console.log(`pool rewardMint: `, data.rewardMint);
-    console.log(`pool creatorRewardAccount: `, data.creatorRewardAccount);
-    console.log(`pool poolStakeAccount: `, data.poolStakeAccount);
+    // Fetch the pool config account and log results
+    const pool_config = await program.account.poolConfig.fetch(POOL_CONFIG_PDA);
+    console.log(`pool owner: `, pool_config.owner.toString());
+    console.log(`pool id: `, pool_config.poolId);
+    console.log(`pool fee: `, pool_config.poolFee);
+    console.log(`pool stakeMint: `, pool_config.stakeMint.toString());
+    console.log(`pool rewardMint: `, pool_config.rewardMint.toString());
+    console.log(`pool poolStakeAccount: `, pool_config.poolStakeAccount.toString());
+    console.log(`pool poolRewardAccount: `, pool_config.poolRewardAccount.toString());
+
+    // Fetch the pool state account and assert results
+    const pool_state = await program.account.poolState.fetch(poolStateAccount.publicKey)
+
+    assert.equal(
+      pool_state.rewardAmount.toString(),
+      rewardAmount.toString(),
+      "The pool reward token amount should match the transfered amount."
+    );
   });
 
   it("create another pool_config account and read all", async () => {
-    const POOL_ADDRESS = "POOL_ADDRESS1";
-    const POOL_FEE = 3;
+    // Create a new mint for mock stake token
+    stakeMint = await createMint(
+      provider.connection,
+      wallet.payer,
+      wallet.publicKey,
+      null,
+      6,
+      undefined,
+      undefined,
+      TOKEN_PROGRAM_ID
+    );
 
-    // Step 2 - Fetch the PDA of our Review account
-    const [POOL_CONFIG_PDA] = await web3.PublicKey.findProgramAddressSync(
-      [Buffer.from(POOL_ADDRESS), provider.wallet.publicKey.toBuffer()],
+    // Create a new mint for mock reward token
+    rewardMint = await createMint(
+      provider.connection,
+      wallet.payer,
+      wallet.publicKey,
+      null,
+      6,
+      undefined,
+      undefined,
+      TOKEN_PROGRAM_ID
+    );
+
+    // Create a reward token account for the pool creator
+    creatorRewardAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      wallet.payer,
+      rewardMint,
+      wallet.publicKey
+    );
+
+    // Mint some mock reward token to the pool creator's account
+    await mintTo(
+      provider.connection,
+      wallet.payer,
+      rewardMint,
+      creatorRewardAccount.address,
+      wallet.publicKey,
+      BigInt(20000000) // 20 tokens of mock USDC
+    );
+
+    // Create a reward token account for the pool creator
+    poolRewardAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      wallet.payer,
+      rewardMint,
       program.programId
     );
 
-    console.log(`owner: ${provider.wallet.publicKey.toString()}`);
+    // Create a token account for the pool to receive staked token
+    poolStakeAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      wallet.payer,
+      stakeMint,
+      program.programId
+    );
+
+    const poolId = "1"; // pool index in case creator has several pools
+    const poolFee = 5;
+
+    // Fetch the PDA of pool config account
+    const [POOL_CONFIG_PDA] = await web3.PublicKey.findProgramAddressSync(
+      [Buffer.from(poolId), provider.wallet.publicKey.toBuffer()],
+      program.programId
+    );
+
     console.log(`Pool PDA: ${POOL_CONFIG_PDA.toString()}`);
 
-    // Step 4 - Send and Confirm the Transaction
+    const rewardAmount = new BN(5000000); // 5 tokens of mock reward
+
+    // Pool State Account
+    poolStateAccount = web3.Keypair.generate();
+
     const tx = await program.methods
-      .createPoolConfig(
-        POOL_ADDRESS,
-        POOL_FEE
+      .initializePool(
+        poolId,
+        poolFee,
+        rewardAmount
       )
-      .accounts({ poolConfig: POOL_CONFIG_PDA })
+      .accounts({
+        poolState: poolStateAccount.publicKey,
+        poolConfig: POOL_CONFIG_PDA,
+        creator: wallet.publicKey,
+        stakeMint: stakeMint,
+        rewardMint: rewardMint,
+        poolStakeAccount: poolStakeAccount.address,
+        creatorRewardAccount: creatorRewardAccount.address,
+        poolRewardAccount: poolRewardAccount.address,
+      })
+      .signers([poolStateAccount])
       .rpc();
 
-    // console.log(`https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+    const pools = await program.account.poolConfig.all();
 
-    const data = await program.account.poolConfig.all();
-
-    data.forEach((item, index) => {
+    pools.forEach((pool, index) => {
       console.log(index)
-      console.log(`pool adress: `, item.account.poolAddr);
-      console.log(`pool fee: `, item.account.poolFee);
+      console.log(`pool pda: `, pool.publicKey.toString());
+      console.log(`pool owner: `, pool.account.owner.toString());
+      console.log(`pool id: `, pool.account.poolId);
+      console.log(`pool fee: `, pool.account.poolFee);
+      console.log(`pool stakeMint: `, pool.account.stakeMint.toString());
+      console.log(`pool rewardMint: `, pool.account.rewardMint.toString());
+      console.log(`pool poolStakeAccount: `, pool.account.poolStakeAccount.toString());
+      console.log(`pool poolRewardAccount: `, pool.account.poolRewardAccount.toString());
     });
   });
 
