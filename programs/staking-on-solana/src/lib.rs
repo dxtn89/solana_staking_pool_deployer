@@ -11,7 +11,9 @@ pub mod staking_on_solana {
         ctx: Context<InitializePool>,
         pool_id: String,
         pool_fee: u8,
-        reward_amount: u64
+        reward_amount: u64,
+        start_slot: u64,
+        end_slot: u64
     ) -> Result<()> {
         let pool_config = &mut ctx.accounts.pool_config;
         pool_config.owner = ctx.accounts.creator.key();
