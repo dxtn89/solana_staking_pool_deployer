@@ -7,7 +7,7 @@ pub fn handler(
     ctx: Context<InitializePool>,
     pool_id: String,
     pool_fee: u8,
-    reward_amount: u64,
+    initial_funding: u64,
     start_slot: u64,
     end_slot: u64
 ) -> Result<()> {
@@ -15,16 +15,19 @@ pub fn handler(
     pool_config.owner = ctx.accounts.creator.key();
     pool_config.pool_id = pool_id;
     pool_config.pool_fee = pool_fee;
+    pool_config.start_slot = start_slot;
+    pool_config.end_slot = end_slot;
     pool_config.stake_mint = ctx.accounts.stake_mint.key();
     pool_config.reward_mint = ctx.accounts.reward_mint.key();
     pool_config.pool_reward_account = ctx.accounts.pool_reward_account.key();
     pool_config.pool_stake_account = ctx.accounts.pool_stake_account.key();
+    pool_config.state_addr = ctx.accounts.pool_state.key();
 
     // Transfer Token from staker to pool account
-    token::transfer(ctx.accounts.transfer_reward_to_pool_context(), reward_amount)?;
+    token::transfer(ctx.accounts.transfer_reward_to_pool_context(), initial_funding)?;
 
     let pool_state = &mut ctx.accounts.pool_state;
-    pool_state.reward_amount = reward_amount;
+    pool_state.reward_amount = initial_funding;
     pool_state.total_staked = 0;
 
     Ok(())

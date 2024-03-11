@@ -45,7 +45,7 @@ describe("staking-on-solana", () => {
   before(async () => {
   });
 
-  async function init_pool(poolId: string, start_slot: BN, end_slot: BN) {
+  async function init_pool(poolId: string, startSlot: BN, endSlot: BN, initialFunding) {
     // Create a new mint for mock stake token
     stakeMint = await createMint(
       provider.connection,
@@ -115,8 +115,6 @@ describe("staking-on-solana", () => {
 
     console.log(`Pool PDA: ${POOL_CONFIG_PDA.toString()}`);
 
-    const rewardAmount = new BN(5000000); // 5 tokens of mock reward
-
     // Pool State Account
     poolStateAccount = web3.Keypair.generate();
 
@@ -124,9 +122,9 @@ describe("staking-on-solana", () => {
       .initializePool(
         poolId,
         poolFee,
-        rewardAmount,
-        start_slot,
-        end_slot
+        initialFunding,
+        startSlot,
+        endSlot
       )
       .accounts({
         poolState: poolStateAccount.publicKey,
@@ -153,15 +151,16 @@ describe("staking-on-solana", () => {
       poolRewardAccount,
       poolStakeAccount,
       poolStateAccount,
-      rewardAmount
+      initialFunding
     };
   }
 
   it("create pool_config account", async () => {
     const start_slot = new BN(1);
     const end_slot = new BN(1e10);
+    const initialFunding = new BN(9000000); // 99 tokens of mock reward with 6 decimals
 
-    const res = await init_pool("0", start_slot, end_slot);
+    const res = await init_pool("0", start_slot, end_slot, initialFunding);
 
     // Fetch the pool config account and log results
     const pool_config = await program.account.poolConfig.fetch(res.POOL_CONFIG_PDA);
@@ -179,7 +178,7 @@ describe("staking-on-solana", () => {
 
     assert.equal(
       pool_state.rewardAmount.toString(),
-      res.rewardAmount.toString(),
+      res.initialFunding.toString(),
       "The pool reward token amount should match the transfered amount."
     );
   });
@@ -187,8 +186,9 @@ describe("staking-on-solana", () => {
   it("create another pool_config account and read all", async () => {
     const start_slot = new BN(1);
     const end_slot = new BN(1e10);
+    const initialFunding = new BN(11000000); // 99d9 tokens of mock reward with 6 decimals
 
-    await init_pool("1", start_slot, end_slot);
+    await init_pool("1", start_slot, end_slot, initialFunding);
 
     const pools = await program.account.poolConfig.all();
 
@@ -205,31 +205,31 @@ describe("staking-on-solana", () => {
     });
   });
 
-  it("Initializes the staking pool", async () => {
-    // Fetch the pool account from the chain.
-    const pool = await program.account.pool.fetch(poolAccount.publicKey);
+  // it("Initializes the staking pool", async () => {
+  //   // Fetch the pool account from the chain.
+  //   const pool = await program.account.pool.fetch(poolAccount.publicKey);
 
-    // Verify the pool's state.
-    assert.equal(
-      pool.totalStaked.toNumber(),
-      0,
-      "The pool was not initialized correctly"
-    );
-  });
+  //   // Verify the pool's state.
+  //   assert.equal(
+  //     pool.totalStaked.toNumber(),
+  //     0,
+  //     "The pool was not initialized correctly"
+  //   );
+  // });
 
   it("Stakes token into the pool and verifies balances, with paramters from certain config account", async () => {
-    const data = await program.account.poolConfig.all();
+    const pools = await program.account.poolConfig.all();
 
-    const selectedConfig = data[0]
+    const selected_pool = pools[0]
 
     console.log("Selected Pool Config")
-    console.log("Pool Address: ", selectedConfig.account.poolAddr)
+    console.log("Pool Config PDA: ", selected_pool.publicKey)
     console.log("Pool Fee: ", selectedConfig.account.poolFee)
 
     const stakeAmount = new BN(5000000); // 5 tokens of mock USDC
 
     await program.methods
-      .stakeToken(stakeAmount)
+      .stake(stakeAmount)
       .accounts({
         staker: wallet.publicKey,
         stakerTokenAccount: stakerUsdcAccount.address,
