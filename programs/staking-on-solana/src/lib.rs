@@ -15,7 +15,8 @@ pub mod staking_on_solana {
         ctx: Context<InitializePool>,
         pool_id: String,
         pool_fee: u8,
-        reward_amount: u64,
+        initial_funding: u64,
+        reward_rate: u8,
         start_slot: u64,
         end_slot: u64
     ) -> Result<()> {
@@ -23,7 +24,8 @@ pub mod staking_on_solana {
             ctx,
             pool_id,
             pool_fee,
-            reward_amount,
+            initial_funding,
+            reward_rate,
             start_slot,
             end_slot
         )

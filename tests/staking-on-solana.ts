@@ -31,23 +31,12 @@ let wallet = getProvider().wallet;
 const program = workspace.StakingOnSolana as Program<StakingOnSolana>;
 
 describe("staking-on-solana", () => {
-  let stakeMint: web3.PublicKey;
-  let rewardMint: web3.PublicKey;
-  let creatorRewardAccount: Account;
-  let poolRewardAccount: Account;
-  let poolStakeAccount: Account;
-  let poolUsdcAccount: Account;
-  let stakerUsdcAccount: Account;
-  let poolAccount: web3.Keypair;
-  let poolStateAccount: web3.Keypair;
-
-
   before(async () => {
   });
 
-  async function init_pool(poolId: string, startSlot: BN, endSlot: BN, initialFunding) {
+  async function init_pool(poolId: string, startSlot: BN, endSlot: BN, initialFunding: BN, rewardRate: BN) {
     // Create a new mint for mock stake token
-    stakeMint = await createMint(
+    const stakeMint = await createMint(
       provider.connection,
       wallet.payer,
       wallet.publicKey,
@@ -59,7 +48,7 @@ describe("staking-on-solana", () => {
     );
 
     // Create a new mint for mock reward token
-    rewardMint = await createMint(
+    const rewardMint = await createMint(
       provider.connection,
       wallet.payer,
       wallet.publicKey,
@@ -71,7 +60,7 @@ describe("staking-on-solana", () => {
     );
 
     // Create a reward token account for the pool creator
-    creatorRewardAccount = await getOrCreateAssociatedTokenAccount(
+    const creatorRewardTokenVault = await getOrCreateAssociatedTokenAccount(
       provider.connection,
       wallet.payer,
       rewardMint,
@@ -83,13 +72,13 @@ describe("staking-on-solana", () => {
       provider.connection,
       wallet.payer,
       rewardMint,
-      creatorRewardAccount.address,
+      creatorRewardTokenVault.address,
       wallet.publicKey,
-      BigInt(20000000) // 20 tokens of mock USDC
+      BigInt(initialFunding) // 20 tokens of mock USDC
     );
 
     // Create a reward token account for the pool creator
-    poolRewardAccount = await getOrCreateAssociatedTokenAccount(
+    const poolRewardTokenVault = await getOrCreateAssociatedTokenAccount(
       provider.connection,
       wallet.payer,
       rewardMint,
@@ -97,7 +86,7 @@ describe("staking-on-solana", () => {
     );
 
     // Create a token account for the pool to receive staked token
-    poolStakeAccount = await getOrCreateAssociatedTokenAccount(
+    const poolStakeTokenVault = await getOrCreateAssociatedTokenAccount(
       provider.connection,
       wallet.payer,
       stakeMint,
@@ -116,13 +105,14 @@ describe("staking-on-solana", () => {
     console.log(`Pool PDA: ${POOL_CONFIG_PDA.toString()}`);
 
     // Pool State Account
-    poolStateAccount = web3.Keypair.generate();
+    const poolStateAccount = web3.Keypair.generate();
 
     const tx = await program.methods
       .initializePool(
         poolId,
         poolFee,
         initialFunding,
+        rewardRate,
         startSlot,
         endSlot
       )
@@ -132,9 +122,9 @@ describe("staking-on-solana", () => {
         creator: wallet.publicKey,
         stakeMint: stakeMint,
         rewardMint: rewardMint,
-        poolStakeAccount: poolStakeAccount.address,
-        creatorRewardAccount: creatorRewardAccount.address,
-        poolRewardAccount: poolRewardAccount.address,
+        poolStakeTokenVault: poolStakeTokenVault.address,
+        creatorRewardTokenVault: creatorRewardTokenVault.address,
+        poolRewardTokenVault: poolRewardTokenVault.address,
         systemProgram: web3.SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
@@ -147,9 +137,9 @@ describe("staking-on-solana", () => {
       POOL_CONFIG_PDA,
       stakeMint,
       rewardMint,
-      creatorRewardAccount,
-      poolRewardAccount,
-      poolStakeAccount,
+      creatorRewardTokenVault,
+      poolRewardTokenVault,
+      poolStakeTokenVault,
       poolStateAccount,
       initialFunding
     };
@@ -159,8 +149,9 @@ describe("staking-on-solana", () => {
     const start_slot = new BN(1);
     const end_slot = new BN(1e10);
     const initialFunding = new BN(9000000); // 99 tokens of mock reward with 6 decimals
+    const rewardRate = new BN(10);
 
-    const res = await init_pool("0", start_slot, end_slot, initialFunding);
+    const res = await init_pool("0", start_slot, end_slot, initialFunding, rewardRate);
 
     // Fetch the pool config account and log results
     const pool_config = await program.account.poolConfig.fetch(res.POOL_CONFIG_PDA);
@@ -170,11 +161,11 @@ describe("staking-on-solana", () => {
     console.log(`pool fee: `, pool_config.poolFee);
     console.log(`pool stakeMint: `, pool_config.stakeMint.toString());
     console.log(`pool rewardMint: `, pool_config.rewardMint.toString());
-    console.log(`pool poolStakeAccount: `, pool_config.poolStakeAccount.toString());
-    console.log(`pool poolRewardAccount: `, pool_config.poolRewardAccount.toString());
+    console.log(`pool poolStakeTokenVault: `, pool_config.poolStakeTokenVault.toString());
+    console.log(`pool poolRewardTokenVault: `, pool_config.poolRewardTokenVault.toString());
 
     // Fetch the pool state account and assert results
-    const pool_state = await program.account.poolState.fetch(poolStateAccount.publicKey)
+    const pool_state = await program.account.poolState.fetch(pool_config.stateAddr)
 
     assert.equal(
       pool_state.rewardAmount.toString(),
@@ -187,8 +178,9 @@ describe("staking-on-solana", () => {
     const start_slot = new BN(1);
     const end_slot = new BN(1e10);
     const initialFunding = new BN(11000000); // 99d9 tokens of mock reward with 6 decimals
+    const rewardRate = (22);
 
-    await init_pool("1", start_slot, end_slot, initialFunding);
+    await init_pool("1", start_slot, end_slot, initialFunding, rewardRate);
 
     const pools = await program.account.poolConfig.all();
 
@@ -200,8 +192,8 @@ describe("staking-on-solana", () => {
       console.log(`pool fee: `, pool.account.poolFee);
       console.log(`pool stakeMint: `, pool.account.stakeMint.toString());
       console.log(`pool rewardMint: `, pool.account.rewardMint.toString());
-      console.log(`pool poolStakeAccount: `, pool.account.poolStakeAccount.toString());
-      console.log(`pool poolRewardAccount: `, pool.account.poolRewardAccount.toString());
+      console.log(`pool poolStakeTokenVault: `, pool.account.poolStakeTokenVault.toString());
+      console.log(`pool poolRewardTokenVault: `, pool.account.poolRewardTokenVault.toString());
     });
   });
 

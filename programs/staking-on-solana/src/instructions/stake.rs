@@ -38,7 +38,7 @@ pub struct Stake<'info> {
     pub staker_stake_account: Account<'info, TokenAccount>,
 
     #[account(mut)]
-    pub pool_stake_account: Account<'info, TokenAccount>,
+    pub pool_stake_token_vault: Account<'info, TokenAccount>,
 
     pub pool_config: Account<'info, PoolConfig>,
 
@@ -54,7 +54,7 @@ impl<'info> Stake<'info> {
     fn into_transfer_to_pool_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         let cpi_accounts = Transfer {
             from: self.staker_stake_account.to_account_info(),
-            to: self.pool_stake_account.to_account_info(),
+            to: self.pool_stake_token_vault.to_account_info(),
             authority: self.staker.to_account_info(),
         };
         CpiContext::new(self.token_program.to_account_info(), cpi_accounts)

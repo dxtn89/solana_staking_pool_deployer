@@ -8,6 +8,7 @@ pub fn handler(
     pool_id: String,
     pool_fee: u8,
     initial_funding: u64,
+    reward_rate: u8,
     start_slot: u64,
     end_slot: u64
 ) -> Result<()> {
@@ -17,10 +18,12 @@ pub fn handler(
     pool_config.pool_fee = pool_fee;
     pool_config.start_slot = start_slot;
     pool_config.end_slot = end_slot;
+    pool_config.reward_rate = reward_rate;
+
     pool_config.stake_mint = ctx.accounts.stake_mint.key();
     pool_config.reward_mint = ctx.accounts.reward_mint.key();
-    pool_config.pool_reward_account = ctx.accounts.pool_reward_account.key();
-    pool_config.pool_stake_account = ctx.accounts.pool_stake_account.key();
+    pool_config.pool_reward_token_vault = ctx.accounts.pool_reward_token_vault.key();
+    pool_config.pool_stake_token_vault = ctx.accounts.pool_stake_token_vault.key();
     pool_config.state_addr = ctx.accounts.pool_state.key();
 
     // Transfer Token from staker to pool account
@@ -57,13 +60,13 @@ pub struct InitializePool<'info> {
     pub reward_mint: Account<'info, Mint>,
 
     #[account(mut)]
-    pub pool_stake_account: Account<'info, TokenAccount>,
+    pub pool_stake_token_vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
-    pub pool_reward_account: Account<'info, TokenAccount>,
+    pub pool_reward_token_vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
-    pub creator_reward_account: Account<'info, TokenAccount>,
+    pub creator_reward_token_vault: Account<'info, TokenAccount>,
 
     pub system_program: Program<'info, System>,
 
@@ -73,8 +76,8 @@ pub struct InitializePool<'info> {
 impl<'info> InitializePool<'info> {
     fn transfer_reward_to_pool_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         let cpi_accounts = Transfer {
-            from: self.creator_reward_account.to_account_info(),
-            to: self.pool_reward_account.to_account_info(),
+            from: self.creator_reward_token_vault.to_account_info(),
+            to: self.pool_reward_token_vault.to_account_info(),
             authority: self.creator.to_account_info(),
         };
         CpiContext::new(self.token_program.to_account_info(), cpi_accounts)
