@@ -13,21 +13,6 @@ This project is a Solana program written in Rust using the Anchor framework. It 
 - Solana CLI
 - Anchor Framework
 
-## Installation
-
-First, ensure you have Rust, Solana CLI, and Anchor installed on your machine. Follow the instructions on the official websites to install these prerequisites:
-
-- Rust: [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install)
-- Solana CLI: [https://docs.solana.com/cli/install-solana-cli-tools](https://docs.solana.com/cli/install-solana-cli-tools)
-- Anchor: [https://project-serum.github.io/anchor/getting-started/installation.html](https://project-serum.github.io/anchor/getting-started/installation.html)
-
-After installing the prerequisites, clone this repository to your local machine:
-
-```bash
-git clone <repository-url>
-cd staking-on-solana
-```
-
 ## Quick Start
 
 1. **Build the project:**
