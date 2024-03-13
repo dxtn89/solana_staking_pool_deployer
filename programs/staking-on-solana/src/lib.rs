@@ -4,6 +4,7 @@ use instructions::*;
 
 mod instructions;
 mod state;
+mod utils;
 
 declare_id!("5d9bF2TaopGL8AM8tCkhKKxSP6e6K4CPF6eQxrspG8Wi");
 
@@ -31,8 +32,8 @@ pub mod staking_on_solana {
         )
     }
 
-    pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
-        instructions::stake::handler(ctx, amount)
+    pub fn stake(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
+        instructions::stake::handler(ctx, stake_amount)
     }
 
     // pub fn initialize_pool(ctx: Context<InitializePool>) -> Result<()> {

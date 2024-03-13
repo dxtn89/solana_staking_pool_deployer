@@ -26,7 +26,7 @@ pub fn handler(
     pool_config.pool_stake_token_vault = ctx.accounts.pool_stake_token_vault.key();
     pool_config.state_addr = ctx.accounts.pool_state.key();
 
-    // Transfer Token from staker to pool account
+    // Transfer Token from creator to pool account
     token::transfer(ctx.accounts.transfer_reward_to_pool_context(), initial_funding)?;
 
     let pool_state = &mut ctx.accounts.pool_state;
