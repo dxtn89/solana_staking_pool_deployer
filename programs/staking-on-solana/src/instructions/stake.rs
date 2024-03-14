@@ -38,7 +38,7 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
     let cpi_accounts = Transfer {
         from: ctx.accounts.staker_stake_token_vault.to_account_info(),
         to: ctx.accounts.pool_stake_token_vault.to_account_info(),
-        authority: ctx.accounts.admin.to_account_info(),
+        authority: ctx.accounts.staker.to_account_info(),
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
