@@ -5,7 +5,7 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-staking_on_solana = "5d9bF2TaopGL8AM8tCkhKKxSP6e6K4CPF6eQxrspG8Wi"
+staking_on_solana = "Ek66VEcmgipM8Npz3o5iF4Ct5swHGp6k9snfPKqmupzk"
 
 [registry]
 url = "https://api.apr.dev"

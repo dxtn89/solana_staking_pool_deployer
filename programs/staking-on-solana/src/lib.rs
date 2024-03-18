@@ -6,7 +6,7 @@ mod instructions;
 mod state;
 mod utils;
 
-declare_id!("5d9bF2TaopGL8AM8tCkhKKxSP6e6K4CPF6eQxrspG8Wi");
+declare_id!("Ek66VEcmgipM8Npz3o5iF4Ct5swHGp6k9snfPKqmupzk");
 
 #[program]
 pub mod staking_on_solana {
@@ -36,18 +36,11 @@ pub mod staking_on_solana {
         instructions::stake::handler(ctx, stake_amount)
     }
 
-    // pub fn initialize_pool(ctx: Context<InitializePool>) -> Result<()> {
-    //     let pool = &mut ctx.accounts.pool;
-    //     pool.total_staked = 0;
-    //     Ok(())
-    // }
-}
+    pub fn unstake(ctx: Context<Unstake>) -> Result<()> {
+        instructions::unstake::handler(ctx)
+    }
 
-// #[derive(Accounts)]
-// pub struct InitializePool<'info> {
-//     #[account(init, payer = user, space = 8 + 8)]
-//     pub pool: Account<'info, PoolState>,
-//     #[account(mut)]
-//     pub user: Signer<'info>,
-//     pub system_program: Program<'info, System>,
-// }
+    pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
+        instructions::claim_reward::handler(ctx)
+    }
+}
