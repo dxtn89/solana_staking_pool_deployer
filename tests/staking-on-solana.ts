@@ -32,7 +32,36 @@ const program = workspace.StakingOnSolana as Program<StakingOnSolana>;
 
 describe("staking-on-solana", () => {
   let user;
+  let treasury;
+
   before(async () => {
+    const deploy_fee = new BN(0.8 * web3.LAMPORTS_PER_SOL); // Fixed SOL in lamports
+    const stake_fee = 200; // Percent * 100
+    const claim_fee = 200; // Percent * 100
+    // Create treasury wallet
+    treasury = await createRandomWalletAndAirdrop(provider, 2)
+
+    // Fetch the PDA of platform info account
+    const [platform_info_pda] = await web3.PublicKey.findProgramAddressSync(
+      [treasury.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const tx = await program.methods
+      .initialize(
+        deploy_fee,
+        stake_fee,
+        claim_fee
+      )
+      .accounts({
+        platform: platform_info_pda,
+        treasury: treasury.publicKey,
+        systemProgram: web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([treasury])
+      .rpc();
+
     // Create staker wallet and airdrop SOL
     user = await createRandomWalletAndAirdrop(provider, 2)
   });
@@ -90,8 +119,14 @@ describe("staking-on-solana", () => {
     // Pool State Account
     const poolStateAccount = web3.Keypair.generate();
 
+    // Fetch the PDA of platform info account
+    const [platform_info_pda] = await web3.PublicKey.findProgramAddressSync(
+      [treasury.publicKey.toBuffer()],
+      program.programId
+    );
+
     const tx = await program.methods
-      .initializePool(
+      .createPool(
         poolId,
         poolFee,
         initialFunding,
@@ -100,9 +135,11 @@ describe("staking-on-solana", () => {
         endSlot
       )
       .accounts({
+        platform: platform_info_pda,
         poolState: poolStateAccount.publicKey,
         poolConfig: POOL_CONFIG_PDA,
         creator: creator.publicKey,
+        treasury: treasury.publicKey,
         stakeMint: stakeMint,
         rewardMint: rewardMint,
         poolStakeTokenVault: poolStakeTokenVault.address,
@@ -111,7 +148,7 @@ describe("staking-on-solana", () => {
         systemProgram: web3.SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
-      .signers([creator, poolStateAccount])
+      .signers([creator, treasury, poolStateAccount])
       .rpc();
 
     console.log(`Pool Init Transaction: https://explorer.solana.com/tx/${tx}?cluster=devnet`);

@@ -61,7 +61,7 @@ pub struct Stake<'info> {
     #[account(
         init_if_needed,
         payer = staker,
-        space = 100,
+        space = USER_INFO_SIZE,
         seeds = [pool_config_account.key().as_ref(), staker.key().as_ref()],
         bump
     )]

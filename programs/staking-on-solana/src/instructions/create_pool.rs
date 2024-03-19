@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{ self, Mint, TokenAccount, Transfer };
+use anchor_lang::system_program;
 
 use crate::state::*;
 
 pub fn handler(
-    ctx: Context<InitializePool>,
+    ctx: Context<CreatePool>,
     pool_id: String,
     pool_fee: u8,
     initial_funding: u64,
@@ -26,34 +27,50 @@ pub fn handler(
     pool_config.pool_stake_token_vault = ctx.accounts.pool_stake_token_vault.key();
     pool_config.state_addr = ctx.accounts.pool_state.key();
 
-    // Transfer Token from creator to pool account
+    // Transfer reward token from creator to pool account
     token::transfer(ctx.accounts.transfer_reward_to_pool_context(), initial_funding)?;
 
     let pool_state = &mut ctx.accounts.pool_state;
     pool_state.reward_amount = initial_funding;
     pool_state.total_staked = 0;
 
+    // Trasfer deploy fee from creator to platform treasury
+    let platform = &ctx.accounts.platform;
+
+    let cpi_program = ctx.accounts.system_program.to_account_info();
+    let cpi_accounts = system_program::Transfer {
+        from: ctx.accounts.creator.to_account_info(),
+        to: ctx.accounts.treasury.to_account_info(),
+    };
+    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    system_program::transfer(cpi_ctx, platform.deploy_fee)?;
+
     Ok(())
 }
 
 #[derive(Accounts)]
 #[instruction(pool_id: String)]
-pub struct InitializePool<'info> {
+pub struct CreatePool<'info> {
     #[account(
         // init_if_needed,
         init,
         payer = creator,
-        space = 500,
+        space = POOL_CONFIG_SIZE,
         seeds = [pool_id.as_bytes().as_ref(), creator.key().as_ref()],
         bump
     )]
     pub pool_config: Account<'info, PoolConfig>,
 
-    #[account(init, payer = creator, space = 100)]
+    #[account(init, payer = creator, space = POOL_STATE_SIZE)]
     pub pool_state: Account<'info, PoolState>,
+
+    pub platform: Account<'info, PlatformInfo>,
 
     #[account(mut)]
     pub creator: Signer<'info>,
+
+    #[account(mut)]
+    pub treasury: Signer<'info>,
 
     pub stake_mint: Account<'info, Mint>,
 
@@ -73,7 +90,7 @@ pub struct InitializePool<'info> {
     pub token_program: Program<'info, token::Token>,
 }
 
-impl<'info> InitializePool<'info> {
+impl<'info> CreatePool<'info> {
     fn transfer_reward_to_pool_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         let cpi_accounts = Transfer {
             from: self.creator_reward_token_vault.to_account_info(),

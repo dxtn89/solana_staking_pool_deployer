@@ -12,8 +12,17 @@ declare_id!("Ek66VEcmgipM8Npz3o5iF4Ct5swHGp6k9snfPKqmupzk");
 pub mod staking_on_solana {
     use super::*;
 
-    pub fn initialize_pool(
-        ctx: Context<InitializePool>,
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        deploy_fee: u64,
+        stake_fee: u16,
+        claim_fee: u16
+    ) -> Result<()> {
+        instructions::initialize::handler(ctx, deploy_fee, stake_fee, claim_fee)
+    }
+
+    pub fn create_pool(
+        ctx: Context<CreatePool>,
         pool_id: String,
         pool_fee: u8,
         initial_funding: u64,
@@ -21,7 +30,7 @@ pub mod staking_on_solana {
         start_slot: u64,
         end_slot: u64
     ) -> Result<()> {
-        instructions::initialize_pool::handler(
+        instructions::create_pool::handler(
             ctx,
             pool_id,
             pool_fee,

@@ -4,7 +4,7 @@ use anchor_spl::token::{ self, TokenAccount, Transfer };
 use crate::state::*;
 
 pub fn handler(ctx: Context<Unstake>) -> Result<()> {
-    let pool_config = &ctx.accounts.pool_config_account;
+    // let pool_config = &ctx.accounts.pool_config_account;
 
     let user_info = &mut ctx.accounts.user_info;
     let user_staked_amount = user_info.staked_amount;

@@ -14,3 +14,5 @@ pub struct PoolConfig {
     pub pool_reward_token_vault: Pubkey,
     pub state_addr: Pubkey,
 }
+
+pub const POOL_CONFIG_SIZE: usize = 8 + 32 + (4 + 2) + 8 + 8 + 1 + 1 + 32 + 32 + 32 + 32 + 32;

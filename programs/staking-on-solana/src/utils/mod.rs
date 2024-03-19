@@ -1,25 +1,25 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{ self, Burn, InitializeMint, MintTo, Transfer };
-use anchor_spl::token_interface::TokenAccount;
+// use anchor_lang::prelude::*;
+// use anchor_spl::token::{ self, Transfer };
+// use anchor_spl::token_interface::TokenAccount;
 
-use crate::state::*;
+// use crate::state::*;
 
-pub fn transfer_tokens<'info>(
-    from: AccountInfo<'info>,
-    to: AccountInfo<'info>,
-    authority: &AccountInfo<'info>,
-    amount: u64,
-    token_program: AccountInfo<'info>
-) -> Result<()> {
-    let cpi_accounts = Transfer {
-        from: from.to_account_info(),
-        to: to.to_account_info(),
-        authority: authority.to_account_info(),
-    };
-    let cpi_program = token_program.to_account_info();
-    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    token::transfer(cpi_ctx, amount)
-}
+// pub fn transfer_tokens<'info>(
+//     from: AccountInfo<'info>,
+//     to: AccountInfo<'info>,
+//     authority: &AccountInfo<'info>,
+//     amount: u64,
+//     token_program: AccountInfo<'info>
+// ) -> Result<()> {
+//     let cpi_accounts = Transfer {
+//         from: from.to_account_info(),
+//         to: to.to_account_info(),
+//         authority: authority.to_account_info(),
+//     };
+//     let cpi_program = token_program.to_account_info();
+//     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+//     token::transfer(cpi_ctx, amount)
+// }
 /* 
 pub fn initialize_mint<'info>(
     token_program: AccountInfo<'info>,
