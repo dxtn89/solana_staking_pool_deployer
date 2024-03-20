@@ -1,39 +1,65 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{ prelude::*, solana_program::clock };
 // use anchor_spl::token::{ self, Transfer };
 // use anchor_spl::token_interface::TokenAccount;
 
 use crate::state::*;
 
-// calculate user's reward amount and log
-pub fn calculate_reward<'info>(
+// Update reward variables of the given pool to be up-to-date.
+pub fn update_pool<'info>(
     pool_config: &Account<'info, PoolConfig>,
-    user_info: &Account<'info, UserInfo>,
-    current_slot: u64
-) -> u64 {
-    // Transfer the user his reward so far
+    pool_state: &mut Account<'info, PoolState>
+) -> Result<()> {
+    let clock = Clock::get()?;
+    msg!("millisecons slot {}", clock::DEFAULT_MS_PER_SLOT);
 
+    if clock.slot <= pool_state.last_reward_slot || pool_state.last_reward_slot == 0 {
+        return Ok(());
+    }
+
+    if pool_state.total_staked == 0 {
+        pool_state.last_reward_slot = clock.slot;
+        return Ok(());
+    }
+
+    let multiplier = get_multiplier(pool_state.last_reward_slot, clock.slot, pool_config.end_slot);
+    let reward = multiplier * pool_config.reward_per_slot;
+    let precision_factor = get_precision_factor(pool_config);
+
+    pool_state.acc_token_per_share += (reward * precision_factor) / pool_state.total_staked;
+
+    pool_state.last_reward_slot = clock.slot;
+    pool_state.should_total_paid += reward;
+
+    msg!("current slot {}", clock.slot);
+    msg!("pool_state.last_reward_slot {}", pool_state.last_reward_slot);
+    msg!("pool_config.end_slot {}", pool_config.end_slot);
+    msg!("multiplier {}", multiplier);
+    msg!("pool_config.reward_per_slot {}", pool_config.reward_per_slot);
+    msg!("reward {}", reward);
+    msg!("precision_factor {}", precision_factor);
+    msg!("pool_state.total_staked {}", pool_state.total_staked);
+    msg!("pool_state.acc_token_per_share {}", pool_state.acc_token_per_share);
+    msg!("pool_state.last_reward_slot {}", pool_state.last_reward_slot);
+    msg!("pool_state.should_total_paide {}", pool_state.should_total_paid);
+
+    Ok(())
+}
+
+pub fn get_multiplier(from_slot: u64, to_slot: u64, pool_end_slot: u64) -> u64 {
+    if to_slot <= pool_end_slot {
+        return to_slot - from_slot;
+    } else if from_slot >= pool_end_slot {
+        return 0;
+    } else {
+        return pool_end_slot - from_slot;
+    }
+}
+
+pub fn get_precision_factor(pool_config: &Account<PoolConfig>) -> u64 {
     let base: u64 = 10;
-    let precision_factor = 9 - pool_config.reward_mint_decimals;
-
-    let accu_slots = current_slot - user_info.deposit_slot;
-    let user_staked_value =
-        user_info.staked_amount / base.pow(pool_config.stake_mint_decimals as u32);
-
-    let current_reward =
-        (pool_config.reward_rate as u64) *
-        accu_slots *
-        user_staked_value *
-        base.pow(precision_factor as u32);
-
-    msg!("current slot {}", current_slot);
-    msg!("user deposit slot {}", user_info.deposit_slot);
-    msg!("user_info.staked_amount {}", user_info.staked_amount);
-    msg!("(pool_config.stake_mint_decimals as u64) {}", pool_config.stake_mint_decimals as u64);
-    msg!("pool_config.reward_rate {}", pool_config.reward_rate);
-    msg!("(precision_factor as u64) {}", precision_factor as u64);
-    msg!("reward amount when claim {}", current_reward);
-
-    current_reward
+    let precision_decimals = 9 - pool_config.reward_mint_decimals;
+    let precision_factor = base.pow(precision_decimals as u32);
+    precision_factor
 }
 
 // pub fn transfer_tokens<'info>(

@@ -9,7 +9,7 @@ pub fn handler(
     pool_id: String,
     pool_fee: u8,
     initial_funding: u64,
-    reward_rate: u8,
+    reward_per_slot: u64,
     start_slot: u64,
     end_slot: u64
 ) -> Result<()> {
@@ -19,7 +19,7 @@ pub fn handler(
     pool_config.pool_fee = pool_fee;
     pool_config.start_slot = start_slot;
     pool_config.end_slot = end_slot;
-    pool_config.reward_rate = reward_rate;
+    pool_config.reward_per_slot = reward_per_slot;
 
     pool_config.stake_mint = ctx.accounts.stake_mint.key();
     pool_config.reward_mint = ctx.accounts.reward_mint.key();

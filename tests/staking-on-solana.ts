@@ -71,12 +71,12 @@ describe("staking-on-solana", () => {
     const start_slot = new BN(1);
     const end_slot = new BN(1e10);
     const initialFunding = new BN(14000000); // 99 tokens of mock reward with 6 decimals
-    const rewardRate = new BN(2);
+    const rewardPerSlot = new BN(15000);
     const poolFee = 5;
 
     const treasuryLamportsBefore = await provider.connection.getBalance(treasury.publicKey);
 
-    const res = await init_pool("0", start_slot, end_slot, initialFunding, rewardRate, poolFee);
+    const res = await init_pool("0", start_slot, end_slot, initialFunding, rewardPerSlot, poolFee);
 
     // Fetch the pool config account and log results
     const pool_config = await program.account.poolConfig.fetch(res.POOL_CONFIG_PDA);
@@ -86,7 +86,7 @@ describe("staking-on-solana", () => {
     console.log(`pool fee: `, pool_config.poolFee);
     console.log(`pool start_slot: `, pool_config.startSlot);
     console.log(`pool end_slot: `, pool_config.endSlot);
-    console.log(`pool reward rate: `, pool_config.rewardRate);
+    console.log(`pool reward rate: `, pool_config.rewardPerSlot);
     console.log(`pool stakeMint: `, pool_config.stakeMint.toString());
     console.log(`pool rewardMint: `, pool_config.rewardMint.toString());
     console.log(`pool poolStakeTokenVault: `, pool_config.poolStakeTokenVault.toString());
@@ -127,10 +127,10 @@ describe("staking-on-solana", () => {
     const start_slot = new BN(1);
     const end_slot = new BN(1e10);
     const initialFunding = new BN(11000000); // 11 tokens of mock reward with 6 decimals
-    const rewardRate = (1);
+    const rewardPerSlot = new BN(20000);
     const poolFee = 10;
 
-    await init_pool("1", start_slot, end_slot, initialFunding, rewardRate, poolFee);
+    await init_pool("1", start_slot, end_slot, initialFunding, rewardPerSlot, poolFee);
 
     const pools = await program.account.poolConfig.all();
 
@@ -382,7 +382,7 @@ describe("staking-on-solana", () => {
 
   });
 
-  async function init_pool(poolId: string, startSlot: BN, endSlot: BN, initialFunding, rewardRate, poolFee) {
+  async function init_pool(poolId: string, startSlot: BN, endSlot: BN, initialFunding, rewardPerSlot, poolFee) {
     // Create staker wallet and airdrop    
     const creator = await createRandomWalletAndAirdrop(provider, 2)
     // Create a new mint for mock stake token
@@ -446,7 +446,7 @@ describe("staking-on-solana", () => {
         poolId,
         poolFee,
         initialFunding,
-        rewardRate,
+        rewardPerSlot,
         startSlot,
         endSlot
       )

@@ -6,23 +6,30 @@ use crate::utils::*;
 
 pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
     let pool_config = &ctx.accounts.pool_config_account;
-
+    let pool_state = &mut ctx.accounts.pool_state_account;
     let user_info = &mut ctx.accounts.user_info;
-    let clock = Clock::get()?;
+
+    let _ = update_pool(pool_config, pool_state);
+
+    let precision_factor = get_precision_factor(pool_config);
 
     // If user already staked before
     if user_info.staked_amount > 0 {
         // Transfer the user his reward so far
-        let current_reward = calculate_reward(pool_config, user_info, clock.slot);
+        let pending =
+            (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor -
+            user_info.reward_debt;
 
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.pool_reward_token_vault.to_account_info(),
-            to: ctx.accounts.user_reward_token_vault.to_account_info(),
-            authority: ctx.accounts.admin.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, current_reward)?;
+        if pending > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.pool_reward_token_vault.to_account_info(),
+                to: ctx.accounts.user_reward_token_vault.to_account_info(),
+                authority: ctx.accounts.admin.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+            token::transfer(cpi_ctx, pending)?;
+        }
     }
 
     // Transfer Token from staker to pool account
@@ -48,14 +55,14 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
     token::transfer(cpi_ctx, stake_fee)?;
 
+    // Update user and pool info
     let real_amount = stake_amount - stake_fee;
 
-    let pool_state = &mut ctx.accounts.pool_state_account;
-    pool_state.total_staked += real_amount;
-
-    // Update the user info
     user_info.staked_amount += real_amount;
-    user_info.deposit_slot = clock.slot;
+    user_info.reward_debt =
+        (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor;
+
+    pool_state.total_staked += real_amount;
 
     Ok(())
 }

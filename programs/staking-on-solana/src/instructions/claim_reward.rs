@@ -5,29 +5,36 @@ use crate::state::*;
 use crate::utils::*;
 
 pub fn handler(ctx: Context<ClaimReward>) -> Result<()> {
-    msg!("Instruction: Claim Reward");
-
     let pool_config = &ctx.accounts.pool_config_account;
-
-    let user_info = &mut ctx.accounts.user_info;
-    let clock = Clock::get()?;
-
-    let current_reward = calculate_reward(pool_config, user_info, clock.slot);
-
-    let cpi_accounts = Transfer {
-        from: ctx.accounts.pool_reward_token_vault.to_account_info(),
-        to: ctx.accounts.user_reward_token_vault.to_account_info(),
-        authority: ctx.accounts.admin.to_account_info(),
-    };
-    let cpi_program = ctx.accounts.token_program.to_account_info();
-    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    token::transfer(cpi_ctx, current_reward)?;
-
-    user_info.reward_debt += current_reward;
-    user_info.deposit_slot = clock.slot;
     let pool_state = &mut ctx.accounts.pool_state_account;
+    let user_info = &mut ctx.accounts.user_info;
 
-    pool_state.reward_amount -= current_reward;
+    let _ = update_pool(pool_config, pool_state);
+
+    if user_info.staked_amount == 0 {
+        return Ok(());
+    }
+
+    let precision_factor = get_precision_factor(pool_config);
+
+    // Transfer the user his reward so far
+    let pending =
+        (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor -
+        user_info.reward_debt;
+
+    if pending > 0 {
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.pool_reward_token_vault.to_account_info(),
+            to: ctx.accounts.user_reward_token_vault.to_account_info(),
+            authority: ctx.accounts.admin.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, pending)?;
+    }
+
+    user_info.reward_debt =
+        (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor;
 
     Ok(())
 }

@@ -26,7 +26,7 @@ pub mod staking_on_solana {
         pool_id: String,
         pool_fee: u8,
         initial_funding: u64,
-        reward_rate: u8,
+        reward_per_slot: u64,
         start_slot: u64,
         end_slot: u64
     ) -> Result<()> {
@@ -35,7 +35,7 @@ pub mod staking_on_solana {
             pool_id,
             pool_fee,
             initial_funding,
-            reward_rate,
+            reward_per_slot,
             start_slot,
             end_slot
         )
