@@ -7,14 +7,14 @@ pub fn handler(
     ctx: Context<Initialize>,
     deploy_fee: u64,
     stake_fee: u16,
-    claim_fee: u16
+    unstake_fee: u16
 ) -> Result<()> {
     let platform = &mut ctx.accounts.platform;
 
     platform.treasury = ctx.accounts.treasury.key();
     platform.deploy_fee = deploy_fee;
     platform.stake_fee = stake_fee;
-    platform.claim_fee = claim_fee;
+    platform.unstake_fee = unstake_fee;
 
     Ok(())
 }

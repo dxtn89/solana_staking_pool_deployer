@@ -10,9 +10,12 @@ pub struct PoolConfig {
     pub reward_rate: u8,
     pub stake_mint: Pubkey,
     pub reward_mint: Pubkey,
+    pub stake_mint_decimals: u8,
+    pub reward_mint_decimals: u8,
     pub pool_stake_token_vault: Pubkey,
     pub pool_reward_token_vault: Pubkey,
     pub state_addr: Pubkey,
 }
 
-pub const POOL_CONFIG_SIZE: usize = 8 + 32 + (4 + 2) + 8 + 8 + 1 + 1 + 32 + 32 + 32 + 32 + 32;
+pub const POOL_CONFIG_SIZE: usize =
+    8 + 32 + (4 + 2) + 8 + 8 + 1 + 1 + 32 + 32 + 1 + 1 + 32 + 32 + 32;

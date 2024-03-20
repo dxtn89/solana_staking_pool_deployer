@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{ self, TokenAccount, Transfer };
 
 use crate::state::*;
+use crate::utils::*;
 
 pub fn handler(ctx: Context<ClaimReward>) -> Result<()> {
     msg!("Instruction: Claim Reward");
@@ -11,20 +12,11 @@ pub fn handler(ctx: Context<ClaimReward>) -> Result<()> {
     let user_info = &mut ctx.accounts.user_info;
     let clock = Clock::get()?;
 
-    let current_reward =
-        (clock.slot - user_info.deposit_slot) *
-        user_info.staked_amount *
-        (pool_config.reward_rate as u64);
-
-    msg!("current slot {}", clock.slot);
-    msg!("user deposit slot {}", user_info.deposit_slot);
-    msg!("user_info.staked_amount {}", user_info.staked_amount);
-    msg!("pool_config.reward_rate {}", pool_config.reward_rate);
-    msg!("reward amount when claim {}", current_reward);
+    let current_reward = calculate_reward(pool_config, user_info, clock.slot);
 
     let cpi_accounts = Transfer {
         from: ctx.accounts.pool_reward_token_vault.to_account_info(),
-        to: ctx.accounts.claimer_reward_token_vault.to_account_info(),
+        to: ctx.accounts.user_reward_token_vault.to_account_info(),
         authority: ctx.accounts.admin.to_account_info(),
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
@@ -51,7 +43,7 @@ pub struct ClaimReward<'info> {
     pub admin: Signer<'info>,
 
     #[account(mut)]
-    pub claimer_reward_token_vault: Account<'info, TokenAccount>,
+    pub user_reward_token_vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub pool_reward_token_vault: Account<'info, TokenAccount>,

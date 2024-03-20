@@ -2,14 +2,29 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{ self, TokenAccount, Transfer };
 
 use crate::state::*;
+use crate::utils::*;
 
-pub fn handler(ctx: Context<Unstake>) -> Result<()> {
-    // let pool_config = &ctx.accounts.pool_config_account;
-
+pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
+    let pool_config = &ctx.accounts.pool_config_account;
     let user_info = &mut ctx.accounts.user_info;
-    let user_staked_amount = user_info.staked_amount;
+    let clock = Clock::get()?;
 
-    // Transfer Token from staker to pool account
+    // Transfer the user his reward so far
+    let current_reward = calculate_reward(pool_config, user_info, clock.slot);
+
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.pool_reward_token_vault.to_account_info(),
+        to: ctx.accounts.user_reward_token_vault.to_account_info(),
+        authority: ctx.accounts.admin.to_account_info(),
+    };
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    token::transfer(cpi_ctx, current_reward)?;
+
+    // Transfer unstake fee from pool to treasury
+    let platform = &ctx.accounts.platform;
+    let unstake_fee = (unstake_amount * (platform.unstake_fee as u64)) / PERCENT_PRECISION;
+
     let cpi_accounts = Transfer {
         from: ctx.accounts.pool_stake_token_vault.to_account_info(),
         to: ctx.accounts.user_stake_token_vault.to_account_info(),
@@ -17,13 +32,25 @@ pub fn handler(ctx: Context<Unstake>) -> Result<()> {
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    token::transfer(cpi_ctx, user_staked_amount)?;
+    token::transfer(cpi_ctx, unstake_fee)?;
+
+    // Transfer unstake amount from pool to user
+    let real_amount = unstake_amount - unstake_fee;
+
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.pool_stake_token_vault.to_account_info(),
+        to: ctx.accounts.user_stake_token_vault.to_account_info(),
+        authority: ctx.accounts.admin.to_account_info(),
+    };
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    token::transfer(cpi_ctx, real_amount)?;
 
     let pool_state = &mut ctx.accounts.pool_state_account;
-    pool_state.total_staked -= user_staked_amount;
+    pool_state.total_staked -= real_amount;
 
     // Update the user info
-    user_info.staked_amount = 0;
+    user_info.staked_amount -= real_amount;
 
     Ok(())
 }
@@ -37,18 +64,30 @@ pub struct Unstake<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
-    #[account(mut)]
-    pub user_stake_token_vault: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub pool_stake_token_vault: Account<'info, TokenAccount>,
-
     pub pool_config_account: Account<'info, PoolConfig>,
 
     #[account(mut)]
     pub pool_state_account: Account<'info, PoolState>,
 
+    pub platform: Account<'info, PlatformInfo>,
+
     #[account(mut)]
     pub user_info: Account<'info, UserInfo>,
+
+    #[account(mut)]
+    pub user_stake_token_vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub user_reward_token_vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub pool_stake_token_vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub pool_reward_token_vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub treasury_stake_token_vault: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, token::Token>,
 

@@ -1,8 +1,40 @@
-// use anchor_lang::prelude::*;
+use anchor_lang::prelude::*;
 // use anchor_spl::token::{ self, Transfer };
 // use anchor_spl::token_interface::TokenAccount;
 
-// use crate::state::*;
+use crate::state::*;
+
+// calculate user's reward amount and log
+pub fn calculate_reward<'info>(
+    pool_config: &Account<'info, PoolConfig>,
+    user_info: &Account<'info, UserInfo>,
+    current_slot: u64
+) -> u64 {
+    // Transfer the user his reward so far
+
+    let base: u64 = 10;
+    let precision_factor = 9 - pool_config.reward_mint_decimals;
+
+    let accu_slots = current_slot - user_info.deposit_slot;
+    let user_staked_value =
+        user_info.staked_amount / base.pow(pool_config.stake_mint_decimals as u32);
+
+    let current_reward =
+        (pool_config.reward_rate as u64) *
+        accu_slots *
+        user_staked_value *
+        base.pow(precision_factor as u32);
+
+    msg!("current slot {}", current_slot);
+    msg!("user deposit slot {}", user_info.deposit_slot);
+    msg!("user_info.staked_amount {}", user_info.staked_amount);
+    msg!("(pool_config.stake_mint_decimals as u64) {}", pool_config.stake_mint_decimals as u64);
+    msg!("pool_config.reward_rate {}", pool_config.reward_rate);
+    msg!("(precision_factor as u64) {}", precision_factor as u64);
+    msg!("reward amount when claim {}", current_reward);
+
+    current_reward
+}
 
 // pub fn transfer_tokens<'info>(
 //     from: AccountInfo<'info>,

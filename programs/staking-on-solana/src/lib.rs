@@ -16,9 +16,9 @@ pub mod staking_on_solana {
         ctx: Context<Initialize>,
         deploy_fee: u64,
         stake_fee: u16,
-        claim_fee: u16
+        unstake_fee: u16
     ) -> Result<()> {
-        instructions::initialize::handler(ctx, deploy_fee, stake_fee, claim_fee)
+        instructions::initialize::handler(ctx, deploy_fee, stake_fee, unstake_fee)
     }
 
     pub fn create_pool(
@@ -45,8 +45,8 @@ pub mod staking_on_solana {
         instructions::stake::handler(ctx, stake_amount)
     }
 
-    pub fn unstake(ctx: Context<Unstake>) -> Result<()> {
-        instructions::unstake::handler(ctx)
+    pub fn unstake(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
+        instructions::unstake::handler(ctx, unstake_amount)
     }
 
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {

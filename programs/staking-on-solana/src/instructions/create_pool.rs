@@ -23,6 +23,8 @@ pub fn handler(
 
     pool_config.stake_mint = ctx.accounts.stake_mint.key();
     pool_config.reward_mint = ctx.accounts.reward_mint.key();
+    pool_config.stake_mint_decimals = ctx.accounts.stake_mint.decimals;
+    pool_config.reward_mint_decimals = ctx.accounts.reward_mint.decimals;
     pool_config.pool_reward_token_vault = ctx.accounts.pool_reward_token_vault.key();
     pool_config.pool_stake_token_vault = ctx.accounts.pool_stake_token_vault.key();
     pool_config.state_addr = ctx.accounts.pool_state.key();

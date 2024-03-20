@@ -1,0 +1,1 @@
+pub const PERCENT_PRECISION: u64 = 10000;
