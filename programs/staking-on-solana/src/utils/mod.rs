@@ -62,6 +62,15 @@ pub fn get_precision_factor(pool_config: &Account<PoolConfig>) -> u64 {
     precision_factor
 }
 
+#[macro_export]
+macro_rules! require_lte {
+    ($value1:expr, $value2:expr, $error_code:expr $(,)?) => {
+        if $value1 > $value2 {
+            return Err(error!($error_code).with_values(($value1, $value2)));
+        }
+    };
+}
+
 // pub fn transfer_tokens<'info>(
 //     from: AccountInfo<'info>,
 //     to: AccountInfo<'info>,

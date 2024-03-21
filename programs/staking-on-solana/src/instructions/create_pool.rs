@@ -10,15 +10,13 @@ pub fn handler(
     pool_fee: u8,
     initial_funding: u64,
     reward_per_slot: u64,
-    start_slot: u64,
-    end_slot: u64
+    duration: u16
 ) -> Result<()> {
     let pool_config = &mut ctx.accounts.pool_config;
     pool_config.owner = ctx.accounts.creator.key();
     pool_config.pool_id = pool_id;
     pool_config.pool_fee = pool_fee;
-    pool_config.start_slot = start_slot;
-    pool_config.end_slot = end_slot;
+    pool_config.duration = duration;
     pool_config.reward_per_slot = reward_per_slot;
 
     pool_config.stake_mint = ctx.accounts.stake_mint.key();
@@ -28,6 +26,11 @@ pub fn handler(
     pool_config.pool_reward_token_vault = ctx.accounts.pool_reward_token_vault.key();
     pool_config.pool_stake_token_vault = ctx.accounts.pool_stake_token_vault.key();
     pool_config.state_addr = ctx.accounts.pool_state.key();
+
+    // Calculate start and end slot
+    let clock = Clock::get()?;
+    pool_config.start_slot = clock.slot + 10;
+    pool_config.end_slot = pool_config.start_slot + (duration as u64) * SLOTS_PER_DAY;
 
     // Transfer reward token from creator to pool account
     token::transfer(ctx.accounts.transfer_reward_to_pool_context(), initial_funding)?;

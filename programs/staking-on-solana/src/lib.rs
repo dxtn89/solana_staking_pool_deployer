@@ -5,6 +5,7 @@ use instructions::*;
 mod instructions;
 mod state;
 mod utils;
+mod error;
 
 declare_id!("Ek66VEcmgipM8Npz3o5iF4Ct5swHGp6k9snfPKqmupzk");
 
@@ -27,8 +28,7 @@ pub mod staking_on_solana {
         pool_fee: u8,
         initial_funding: u64,
         reward_per_slot: u64,
-        start_slot: u64,
-        end_slot: u64
+        duration: u16
     ) -> Result<()> {
         instructions::create_pool::handler(
             ctx,
@@ -36,8 +36,7 @@ pub mod staking_on_solana {
             pool_fee,
             initial_funding,
             reward_per_slot,
-            start_slot,
-            end_slot
+            duration
         )
     }
 
@@ -51,5 +50,13 @@ pub mod staking_on_solana {
 
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
         instructions::claim_reward::handler(ctx)
+    }
+
+    pub fn start_reward(ctx: Context<StartReward>) -> Result<()> {
+        instructions::start_reward::handler(ctx)
+    }
+
+    pub fn stop_reward(ctx: Context<StopReward>) -> Result<()> {
+        instructions::stop_reward::handler(ctx)
     }
 }

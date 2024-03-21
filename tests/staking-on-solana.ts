@@ -68,15 +68,16 @@ describe("staking-on-solana", () => {
 
 
   it("create pool_config account", async () => {
-    const start_slot = new BN(1);
-    const end_slot = new BN(1e10);
-    const initialFunding = new BN(14000000); // 99 tokens of mock reward with 6 decimals
+    const duration = 30;
+    const stakeDecimals = 6;
+    const rewardDecimals = 8;
+    const initialFunding = 14; // 14 tokens of mock reward with 6 decimals
     const rewardPerSlot = new BN(15000);
     const poolFee = 5;
 
     const treasuryLamportsBefore = await provider.connection.getBalance(treasury.publicKey);
 
-    const res = await init_pool("0", start_slot, end_slot, initialFunding, rewardPerSlot, poolFee);
+    const res = await init_pool("0", duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, poolFee);
 
     // Fetch the pool config account and log results
     const pool_config = await program.account.poolConfig.fetch(res.POOL_CONFIG_PDA);
@@ -103,17 +104,10 @@ describe("staking-on-solana", () => {
     const poolInitialInfo = await provider.connection.getTokenAccountBalance(res.poolRewardTokenVault.address)
     assert.equal(
       poolInitialInfo.value.amount.toString(),
-      initialFunding.toString(),
+      new BN(10 ** stakeDecimals * initialFunding).toString(),
       "The pool reward token account should match the initial funding amount"
     );
-    // Fetch the pool state account and assert results
-    const pool_state = await program.account.poolState.fetch(pool_config.stateAddr)
 
-    assert.equal(
-      pool_state.rewardAmount.toString(),
-      initialFunding.toString(),
-      "The pool state for initial funding is not set correctly."
-    );
     // Assert Treasury has right amount added
     const treasuryLamportsAfter = await provider.connection.getBalance(treasury.publicKey);
     assert.equal(
@@ -124,13 +118,14 @@ describe("staking-on-solana", () => {
   });
 
   it("create another pool_config account and read all", async () => {
-    const start_slot = new BN(1);
-    const end_slot = new BN(1e10);
-    const initialFunding = new BN(11000000); // 11 tokens of mock reward with 6 decimals
+    const duration = 365;
+    const stakeDecimals = 9;
+    const rewardDecimals = 6;
+    const initialFunding = 11; // 11 tokens of mock reward with 6 decimals
     const rewardPerSlot = new BN(20000);
     const poolFee = 10;
 
-    await init_pool("1", start_slot, end_slot, initialFunding, rewardPerSlot, poolFee);
+    await init_pool("1", duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, poolFee);
 
     const pools = await program.account.poolConfig.all();
 
@@ -382,13 +377,13 @@ describe("staking-on-solana", () => {
 
   });
 
-  async function init_pool(poolId: string, startSlot: BN, endSlot: BN, initialFunding, rewardPerSlot, poolFee) {
+  async function init_pool(poolId: string, duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, poolFee) {
     // Create staker wallet and airdrop    
     const creator = await createRandomWalletAndAirdrop(provider, 2)
     // Create a new mint for mock stake token
-    const stakeMint = await createRandomMint(provider, 6)
+    const stakeMint = await createRandomMint(provider, stakeDecimals)
     // Create a new mint for mock reward token
-    const rewardMint = await createRandomMint(provider, 6)
+    const rewardMint = await createRandomMint(provider, rewardDecimals)
 
     // Create a reward token account for the pool creator
     const creatorRewardTokenVault = await getOrCreateAssociatedTokenAccount(
@@ -398,6 +393,8 @@ describe("staking-on-solana", () => {
       creator.publicKey
     );
 
+    const fundingAmount = new BN(10 ** stakeDecimals * initialFunding)
+
     // Mint some mock reward token to the pool creator's account
     await mintTo(
       provider.connection,
@@ -405,7 +402,7 @@ describe("staking-on-solana", () => {
       rewardMint,
       creatorRewardTokenVault.address,
       admin.publicKey,
-      BigInt(initialFunding)
+      BigInt(fundingAmount)
     );
 
     // Create a reward token account for the pool creator
@@ -445,10 +442,9 @@ describe("staking-on-solana", () => {
       .createPool(
         poolId,
         poolFee,
-        initialFunding,
+        fundingAmount,
         rewardPerSlot,
-        startSlot,
-        endSlot
+        duration
       )
       .accounts({
         platform: platform_info_pda,
