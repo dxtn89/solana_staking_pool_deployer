@@ -9,7 +9,7 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
     let pool_state = &mut ctx.accounts.pool_state_account;
     let user_info = &mut ctx.accounts.user_info;
 
-    let _ = update_pool(pool_config, pool_state);
+    update_pool(pool_config, pool_state);
 
     let precision_factor = get_precision_factor(pool_config);
 
@@ -29,6 +29,8 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
             let cpi_program = ctx.accounts.token_program.to_account_info();
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_ctx, pending)?;
+
+            pool_state.paid_rewards += pending;
         }
     }
 

@@ -1,40 +1,46 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::clock;
 use anchor_spl::token::{ self, TokenAccount, Transfer };
 
 use crate::state::*;
 use crate::utils::*;
+use crate::error::*;
+use crate::events::*;
 
 pub fn handler(ctx: Context<StopReward>) -> Result<()> {
-    let pool_config = &ctx.accounts.pool_config_account;
+    let pool_config = &mut ctx.accounts.pool_config_account;
     let pool_state = &mut ctx.accounts.pool_state_account;
-    let user_info = &mut ctx.accounts.user_info;
 
-    let _ = update_pool(pool_config, pool_state);
+    update_pool(pool_config, pool_state);
 
-    if user_info.staked_amount == 0 {
-        return Ok(());
-    }
+    let mut remain_rewards =
+        available_reward_tokens(pool_config, pool_state) + pool_state.paid_rewards;
 
-    let precision_factor = get_precision_factor(pool_config);
-
-    // Transfer the user his reward so far
-    let pending =
-        (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor -
-        user_info.reward_debt;
-
-    if pending > 0 {
+    if remain_rewards > pool_state.should_total_paid {
+        remain_rewards = remain_rewards - pool_state.should_total_paid;
+        // transfer remaining reward to deployer
         let cpi_accounts = Transfer {
             from: ctx.accounts.pool_reward_token_vault.to_account_info(),
-            to: ctx.accounts.user_reward_token_vault.to_account_info(),
-            authority: ctx.accounts.admin.to_account_info(),
+            to: ctx.accounts.deployer_reward_token_vault.to_account_info(),
+            authority: ctx.accounts.deployer.to_account_info(),
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, pending)?;
+        token::transfer(cpi_ctx, remain_rewards)?;
+
+        if pool_state.total_earned > remain_rewards {
+            pool_state.total_earned -= remain_rewards;
+        } else {
+            pool_state.total_earned = 0;
+        }
     }
 
-    user_info.reward_debt =
-        (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor;
+    let clock = Clock::get()?;
+    pool_config.end_slot = clock.slot;
+
+    emit!(RewardsStop {
+        end_slot: pool_config.end_slot,
+    });
 
     Ok(())
 }
@@ -43,22 +49,15 @@ pub fn handler(ctx: Context<StopReward>) -> Result<()> {
 pub struct StopReward<'info> {
     /// CHECK:
     #[account(mut)]
-    pub claimer: AccountInfo<'info>,
+    pub deployer: AccountInfo<'info>,
 
-    /// CHECK:
-    #[account(mut)]
-    pub admin: Signer<'info>,
-
-    #[account(mut)]
-    pub user_reward_token_vault: Account<'info, TokenAccount>,
+    pub pool_config_account: Account<'info, PoolConfig>,
 
     #[account(mut)]
     pub pool_reward_token_vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
-    pub user_info: Account<'info, UserInfo>,
-
-    pub pool_config_account: Account<'info, PoolConfig>,
+    pub deployer_reward_token_vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub pool_state_account: Account<'info, PoolState>,

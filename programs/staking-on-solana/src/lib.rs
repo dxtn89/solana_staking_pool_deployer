@@ -6,6 +6,7 @@ mod instructions;
 mod state;
 mod utils;
 mod error;
+mod events;
 
 declare_id!("Ek66VEcmgipM8Npz3o5iF4Ct5swHGp6k9snfPKqmupzk");
 

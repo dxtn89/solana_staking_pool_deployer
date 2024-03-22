@@ -62,6 +62,46 @@ pub fn get_precision_factor(pool_config: &Account<PoolConfig>) -> u64 {
     precision_factor
 }
 
+pub fn insufficient_rewards(
+    pool_config: &Account<PoolConfig>,
+    pool_state: &mut Account<PoolState>
+) -> u64 {
+    let mut adjusted_should_total_paid = pool_state.should_total_paid;
+    let remain_rewards = available_reward_tokens(pool_config, pool_state) + pool_state.paid_rewards;
+
+    if pool_config.start_slot == 0 {
+        adjusted_should_total_paid +=
+            pool_config.reward_per_slot * (pool_config.duration as u64) * SLOTS_PER_DAY;
+    } else {
+        let remain_blocks = get_multiplier(
+            pool_state.last_reward_slot,
+            pool_config.end_slot,
+            pool_config.end_slot
+        );
+        adjusted_should_total_paid += pool_config.reward_per_slot * remain_blocks;
+    }
+
+    if remain_rewards >= adjusted_should_total_paid {
+        return 0;
+    }
+
+    return adjusted_should_total_paid - remain_rewards;
+}
+
+pub fn available_reward_tokens(
+    pool_config: &Account<PoolConfig>,
+    pool_state: &mut Account<PoolState>
+) -> u64 {
+    let amount = pool_state.reward_amount;
+    if pool_config.reward_mint == pool_config.stake_mint {
+        if amount < pool_state.total_staked {
+            return 0;
+        }
+        return amount - pool_state.total_staked;
+    }
+    return amount;
+}
+
 #[macro_export]
 macro_rules! require_lte {
     ($value1:expr, $value2:expr, $error_code:expr $(,)?) => {

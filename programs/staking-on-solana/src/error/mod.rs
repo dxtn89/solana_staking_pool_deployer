@@ -4,8 +4,12 @@ use anchor_lang::prelude::*;
 // (old Anchor 0.18 added 300 for user error codes)
 #[error_code]
 pub enum BrewStakingError {
-    #[msg("Wrong reserve owner. Must be a system account")]
+    #[msg("Pool was already started")]
     PoolNotStarted,
+
+    #[msg("All reward tokens have not been deposited")]
+    RewardNotDeposited,
+
     #[msg("Wrong reserve owner. Must be a system account")]
     WrongReserveOwner, // 6000 0x1770
 
