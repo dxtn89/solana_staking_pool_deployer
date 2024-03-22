@@ -7,7 +7,8 @@ use crate::state::*;
 pub fn handler(
     ctx: Context<CreatePool>,
     pool_id: String,
-    pool_fee: u8,
+    stake_fee: u16,
+    unstake_fee: u16,
     initial_funding: u64,
     reward_per_slot: u64,
     duration: u16
@@ -15,7 +16,8 @@ pub fn handler(
     let pool_config = &mut ctx.accounts.pool_config;
     pool_config.owner = ctx.accounts.creator.key();
     pool_config.pool_id = pool_id;
-    pool_config.pool_fee = pool_fee;
+    pool_config.stake_fee = stake_fee;
+    pool_config.unstake_fee = unstake_fee;
     pool_config.duration = duration;
     pool_config.reward_per_slot = reward_per_slot;
 
@@ -28,9 +30,9 @@ pub fn handler(
     pool_config.state_addr = ctx.accounts.pool_state.key();
 
     // Calculate start and end slot
-    let clock = Clock::get()?;
-    pool_config.start_slot = clock.slot + 10;
-    pool_config.end_slot = pool_config.start_slot + (duration as u64) * SLOTS_PER_DAY;
+    // let clock = Clock::get()?;
+    // pool_config.start_slot = clock.slot + 10;
+    // pool_config.end_slot = pool_config.start_slot + (duration as u64) * SLOTS_PER_DAY;
 
     // Transfer reward token from creator to pool account
     token::transfer(ctx.accounts.transfer_reward_to_pool_context(), initial_funding)?;

@@ -17,16 +17,16 @@ pub mod staking_on_solana {
     pub fn initialize(
         ctx: Context<Initialize>,
         deploy_fee: u64,
-        stake_fee: u16,
-        unstake_fee: u16
+        performance_fee: u64
     ) -> Result<()> {
-        instructions::initialize::handler(ctx, deploy_fee, stake_fee, unstake_fee)
+        instructions::initialize::handler(ctx, deploy_fee, performance_fee)
     }
 
     pub fn create_pool(
         ctx: Context<CreatePool>,
         pool_id: String,
-        pool_fee: u8,
+        stake_fee: u16,
+        unstake_fee: u16,
         initial_funding: u64,
         reward_per_slot: u64,
         duration: u16
@@ -34,7 +34,8 @@ pub mod staking_on_solana {
         instructions::create_pool::handler(
             ctx,
             pool_id,
-            pool_fee,
+            stake_fee,
+            unstake_fee,
             initial_funding,
             reward_per_slot,
             duration

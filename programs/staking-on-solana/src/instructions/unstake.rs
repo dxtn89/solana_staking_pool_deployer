@@ -9,7 +9,7 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
     let pool_state = &mut ctx.accounts.pool_state_account;
     let user_info = &mut ctx.accounts.user_info;
 
-    update_pool(pool_config, pool_state);
+    let _ = update_pool(pool_config, pool_state);
 
     let precision_factor = get_precision_factor(pool_config);
 
@@ -40,7 +40,7 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
     }
     // Transfer unstake fee from pool to treasury
     let platform = &ctx.accounts.platform;
-    let unstake_fee = (real_amount * (platform.unstake_fee as u64)) / PERCENT_PRECISION;
+    let unstake_fee = (real_amount * (pool_config.unstake_fee as u64)) / PERCENT_PRECISION;
 
     let cpi_accounts = Transfer {
         from: ctx.accounts.pool_stake_token_vault.to_account_info(),

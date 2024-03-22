@@ -3,18 +3,12 @@ use anchor_spl::token::{ self };
 
 use crate::state::*;
 
-pub fn handler(
-    ctx: Context<Initialize>,
-    deploy_fee: u64,
-    stake_fee: u16,
-    unstake_fee: u16
-) -> Result<()> {
+pub fn handler(ctx: Context<Initialize>, deploy_fee: u64, performance_fee: u64) -> Result<()> {
     let platform = &mut ctx.accounts.platform;
 
     platform.treasury = ctx.accounts.treasury.key();
     platform.deploy_fee = deploy_fee;
-    platform.stake_fee = stake_fee;
-    platform.unstake_fee = unstake_fee;
+    platform.performance_fee = performance_fee;
 
     Ok(())
 }

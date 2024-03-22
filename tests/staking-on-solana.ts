@@ -34,8 +34,7 @@ describe("staking-on-solana", () => {
   let user;
   let treasury;
   const deploy_fee = new BN(0.8 * web3.LAMPORTS_PER_SOL); // Fixed SOL in lamports
-  const stake_fee = 200; // Percent * 100
-  const unstake_fee = 200; // Percent * 100
+  const performance_fee = new BN(0.05 * web3.LAMPORTS_PER_SOL); // Fixed SOL in lamports
 
   before(async () => {
     // Create treasury wallet
@@ -50,8 +49,7 @@ describe("staking-on-solana", () => {
     const tx = await program.methods
       .initialize(
         deploy_fee,
-        stake_fee,
-        unstake_fee
+        performance_fee
       )
       .accounts({
         platform: platform_info_pda,
@@ -73,11 +71,12 @@ describe("staking-on-solana", () => {
     const rewardDecimals = 8;
     const initialFunding = 14; // 14 tokens of mock reward with 6 decimals
     const rewardPerSlot = new BN(15000);
-    const poolFee = 5;
+    const stakeFee = 200; // Percent * 100
+    const unstakeFee = 200; // Percent * 100
 
     const treasuryLamportsBefore = await provider.connection.getBalance(treasury.publicKey);
 
-    const res = await init_pool("0", duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, poolFee);
+    const res = await init_pool("0", duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, stakeFee, unstakeFee);
 
     // Fetch the pool config account and log results
     const pool_config = await program.account.poolConfig.fetch(res.POOL_CONFIG_PDA);
@@ -123,9 +122,10 @@ describe("staking-on-solana", () => {
     const rewardDecimals = 6;
     const initialFunding = 11; // 11 tokens of mock reward with 6 decimals
     const rewardPerSlot = new BN(20000);
-    const poolFee = 10;
+    const stakeFee = 300; // Percent * 100
+    const unstakeFee = 300; // Percent * 100
 
-    await init_pool("1", duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, poolFee);
+    await init_pool("1", duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, stakeFee, unstakeFee);
 
     const pools = await program.account.poolConfig.all();
 
@@ -220,9 +220,8 @@ describe("staking-on-solana", () => {
     );
 
     // Assert treasury has received correct stake fee
-    const platform = await program.account.platformInfo.fetch(platform_info_pda);
     const treasuryStakeInfo = await provider.connection.getTokenAccountBalance(treasuryStakeTokenVault.address)
-    const stakeFee = stakeAmount * platform.stakeFee / 10000
+    const stakeFee = stakeAmount * selected_pool.account.stakeFee / 10000
     assert.equal(
       treasuryStakeInfo.value.amount.toString(),
       stakeFee.toString(),
@@ -377,7 +376,7 @@ describe("staking-on-solana", () => {
 
   });
 
-  async function init_pool(poolId: string, duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, poolFee) {
+  async function init_pool(poolId: string, duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, stakeFee, unstakeFee) {
     // Create staker wallet and airdrop    
     const creator = await createRandomWalletAndAirdrop(provider, 2)
     // Create a new mint for mock stake token
@@ -441,7 +440,8 @@ describe("staking-on-solana", () => {
     const tx = await program.methods
       .createPool(
         poolId,
-        poolFee,
+        stakeFee,
+        unstakeFee,
         fundingAmount,
         rewardPerSlot,
         duration

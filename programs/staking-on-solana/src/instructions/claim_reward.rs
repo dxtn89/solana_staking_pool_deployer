@@ -9,7 +9,7 @@ pub fn handler(ctx: Context<ClaimReward>) -> Result<()> {
     let pool_state = &mut ctx.accounts.pool_state_account;
     let user_info = &mut ctx.accounts.user_info;
 
-    update_pool(pool_config, pool_state);
+    let _ = update_pool(pool_config, pool_state);
 
     if user_info.staked_amount == 0 {
         return Ok(());

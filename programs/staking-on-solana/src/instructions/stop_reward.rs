@@ -11,7 +11,7 @@ pub fn handler(ctx: Context<StopReward>) -> Result<()> {
     let pool_config = &mut ctx.accounts.pool_config_account;
     let pool_state = &mut ctx.accounts.pool_state_account;
 
-    update_pool(pool_config, pool_state);
+    let _ = update_pool(pool_config, pool_state);
 
     let mut remain_rewards =
         available_reward_tokens(pool_config, pool_state) + pool_state.paid_rewards;

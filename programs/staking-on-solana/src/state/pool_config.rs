@@ -7,8 +7,9 @@ pub struct PoolConfig {
     pub duration: u16,
     pub start_slot: u64,
     pub end_slot: u64,
-    pub pool_fee: u8,
     pub reward_per_slot: u64,
+    pub stake_fee: u16,
+    pub unstake_fee: u16,
     pub stake_mint: Pubkey,
     pub reward_mint: Pubkey,
     pub stake_mint_decimals: u8,
@@ -19,4 +20,4 @@ pub struct PoolConfig {
 }
 
 pub const POOL_CONFIG_SIZE: usize =
-    8 + 32 + (4 + 2) + 8 + 8 + 8 + 1 + 8 + 32 + 32 + 1 + 1 + 32 + 32 + 32;
+    8 + 32 + (4 + 2) + 2 + 8 + 8 + 8 + 2 + 2 + 32 + 32 + 1 + 1 + 32 + 32 + 32;
