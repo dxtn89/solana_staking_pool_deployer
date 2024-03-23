@@ -19,7 +19,7 @@ import {
 import { createWithSeedSync } from "@coral-xyz/anchor/dist/cjs/utils/pubkey";
 import { assert } from "chai";
 import { StakingOnSolana } from "../target/types/staking_on_solana";
-import { createRandomMint, createRandomWalletAndAirdrop } from "./utils";
+import { createRandomMint, createRandomWalletAndAirdrop, getRandomNumber, waitSeconds } from "./utils";
 
 // Configure the client to use the local cluster.
 const provider = AnchorProvider.env();
@@ -31,8 +31,11 @@ let admin = getProvider().wallet;
 const program = workspace.StakingOnSolana as Program<StakingOnSolana>;
 
 describe("staking-on-solana", () => {
-  let user;
   let treasury;
+  let deployer1;
+  let deployer2;
+  let user1;
+  let user2;
   const deploy_fee = new BN(0.8 * web3.LAMPORTS_PER_SOL); // Fixed SOL in lamports
   const performance_fee = new BN(0.05 * web3.LAMPORTS_PER_SOL); // Fixed SOL in lamports
 
@@ -61,9 +64,24 @@ describe("staking-on-solana", () => {
       .rpc();
 
     // Create staker wallet and airdrop SOL
-    user = await createRandomWalletAndAirdrop(provider, 2)
-  });
+    user1 = await createRandomWalletAndAirdrop(provider, 2)
+    user2 = await createRandomWalletAndAirdrop(provider, 2)
+    deployer1 = await createRandomWalletAndAirdrop(provider, 2)
+    deployer2 = await createRandomWalletAndAirdrop(provider, 2)
 
+    //setup logging event listeners
+    program.addEventListener('NewStartAndEndSlots', (event, slot) => {
+      console.log('Event NewStartAndEndSlots in slot : ', slot);
+      console.log('start slot : ', event.startSlot.toString());
+      console.log('end slot : ', event.endSlot.toString());
+    });
+
+    // program.addEventListener('RewardClaim', (event, slot) => {
+    //   console.log('Event RewardClaim in slot : ', slot);
+    //   console.log('claimer : ', event.claimer.toString());
+    //   console.log('amount : ', event.amount.toString());
+    // });
+  });
 
   it("create pool_config account", async () => {
     const duration = 30;
@@ -76,14 +94,15 @@ describe("staking-on-solana", () => {
 
     const treasuryLamportsBefore = await provider.connection.getBalance(treasury.publicKey);
 
-    const res = await init_pool("0", duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, stakeFee, unstakeFee);
+    const res = await init_pool(deployer1, duration, stakeFee, unstakeFee, initialFunding, rewardPerSlot, stakeDecimals, rewardDecimals);
 
     // Fetch the pool config account and log results
     const pool_config = await program.account.poolConfig.fetch(res.POOL_CONFIG_PDA);
 
     console.log(`pool owner: `, pool_config.owner.toString());
     console.log(`pool id: `, pool_config.poolId);
-    console.log(`pool fee: `, pool_config.poolFee);
+    console.log(`pool stakeFee: `, pool_config.stakeFee);
+    console.log(`pool unstakeFee: `, pool_config.unstakeFee);
     console.log(`pool start_slot: `, pool_config.startSlot);
     console.log(`pool end_slot: `, pool_config.endSlot);
     console.log(`pool reward rate: `, pool_config.rewardPerSlot);
@@ -125,7 +144,7 @@ describe("staking-on-solana", () => {
     const stakeFee = 300; // Percent * 100
     const unstakeFee = 300; // Percent * 100
 
-    await init_pool("1", duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, stakeFee, unstakeFee);
+    await init_pool(deployer2, duration, stakeFee, unstakeFee, initialFunding, rewardPerSlot, stakeDecimals, rewardDecimals);
 
     const pools = await program.account.poolConfig.all();
 
@@ -136,6 +155,40 @@ describe("staking-on-solana", () => {
     });
   });
 
+  it("start the pool and check start and end slots", async () => {
+    // Get pool config list and select one
+    let pools = await program.account.poolConfig.all();
+
+    pools.forEach(async (pool, index) => {
+      let deployer = deployer1;
+      if (pool.account.owner.toString() == deployer1.publicKey.toString()) {
+        deployer = deployer1;
+      }
+      if (pool.account.owner.toString() == deployer2.publicKey.toString()) {
+        deployer = deployer2;
+      }
+
+      await program.methods
+        .startReward()
+        .accounts({
+          deployer: deployer.publicKey,
+          poolConfigAccount: pool.publicKey,
+          poolStateAccount: pool.account.stateAddr,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([deployer])
+        .rpc();
+
+      console.log("start slot", pool.account.startSlot.toString())
+      console.log("end slot", pool.account.endSlot.toString())
+    });
+
+    // Wait some seconds after starting the pool
+    console.log("wait 10 seconds...")
+    await waitSeconds(10);
+    console.log("wait ended...")
+  });
+
   it("Stakes token into the pool and verifies balances, with paramters from certain config account", async () => {
     // Get pool config list and select one
     const pools = await program.account.poolConfig.all();
@@ -143,85 +196,21 @@ describe("staking-on-solana", () => {
 
     console.log("Selected Staking Pool Config PDA: ", selected_pool.publicKey)
 
-    // Get a stake token account for the pool user
-    const userStakeTokenVault = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      admin.payer,
-      selected_pool.account.stakeMint,
-      user.publicKey
-    );
+    const stakeTokens = getRandomNumber(1, 10);
 
-    const userInitialAmount = new BN(8000000); // 8 of stake token
-    // Mint some mock stake token to the staker's account
-    await mintTo(
-      provider.connection,
-      admin.payer,
-      selected_pool.account.stakeMint,
-      userStakeTokenVault.address,
-      admin.publicKey,
-      BigInt(userInitialAmount) // 20 tokens of mock USDC
-    );
-
-    // Create a reward token account for the pool user
-    const userRewardTokenVault = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      admin.payer,
-      selected_pool.account.rewardMint,
-      user.publicKey
-    );
-
-    const stakeAmount = new BN(5000000); // 5 of stake token
-
-    // Fetch the PDA of pool config account
-    const [userInfoPDA] = await web3.PublicKey.findProgramAddressSync(
-      [selected_pool.publicKey.toBuffer(), user.publicKey.toBuffer()],
-      program.programId
-    );
-
-    // Fetch the PDA of platform info account
-    const [platform_info_pda] = await web3.PublicKey.findProgramAddressSync(
-      [treasury.publicKey.toBuffer()],
-      program.programId
-    );
-
-    // Get a stake token account for the treasury
-    const treasuryStakeTokenVault = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      admin.payer,
-      selected_pool.account.stakeMint,
-      treasury.publicKey
-    );
-
-    await program.methods
-      .stake(stakeAmount)
-      .accounts({
-        staker: user.publicKey,
-        admin: admin.publicKey,
-        platform: platform_info_pda,
-        userInfo: userInfoPDA,
-        userStakeTokenVault: userStakeTokenVault.address,
-        userRewardTokenVault: userRewardTokenVault.address,
-        poolStakeTokenVault: selected_pool.account.poolStakeTokenVault,
-        poolRewardTokenVault: selected_pool.account.poolRewardTokenVault,
-        treasuryStakeTokenVault: treasuryStakeTokenVault.address,
-        poolConfigAccount: selected_pool.publicKey,
-        poolStateAccount: selected_pool.account.stateAddr,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .signers([user])
-      .rpc();
+    const stakeResponse = await stake_pool(selected_pool, user1, stakeTokens)
 
     // Assert staker remaining stake token amount
-    const userStakeInfo = await provider.connection.getTokenAccountBalance(userStakeTokenVault.address)
+    const userStakeInfo = await provider.connection.getTokenAccountBalance(stakeResponse.userStakeTokenVault.address)
     assert.equal(
       userStakeInfo.value.amount.toString(),
-      (userInitialAmount - stakeAmount).toString(),
+      (stakeResponse.userInitialAmount - stakeResponse.stakeAmount).toString(),
       "Remaining user stake token amount is not right"
     );
 
     // Assert treasury has received correct stake fee
-    const treasuryStakeInfo = await provider.connection.getTokenAccountBalance(treasuryStakeTokenVault.address)
-    const stakeFee = stakeAmount * selected_pool.account.stakeFee / 10000
+    const treasuryStakeInfo = await provider.connection.getTokenAccountBalance(stakeResponse.treasuryStakeTokenVault.address)
+    const stakeFee = stakeResponse.stakeAmount * selected_pool.account.stakeFee / 10000
     assert.equal(
       treasuryStakeInfo.value.amount.toString(),
       stakeFee.toString(),
@@ -232,10 +221,36 @@ describe("staking-on-solana", () => {
     const poolStakeInfo = await provider.connection.getTokenAccountBalance(selected_pool.account.poolStakeTokenVault)
     assert.equal(
       poolStakeInfo.value.amount.toString(),
-      (stakeAmount - stakeFee).toString(),
+      (stakeResponse.stakeAmount - stakeFee).toString(),
       "The pool stake token account should match the staked amount"
     );
+  });
 
+  it("perform stake by another user with delayed time", async () => {
+    // Get pool config list and select one
+    const pools = await program.account.poolConfig.all();
+    const selected_pool = pools[0];
+
+    console.log("Selected Staking Pool Config PDA: ", selected_pool.publicKey)
+
+    let stakeTokens = getRandomNumber(1, 10);
+    const stakeResponse = await stake_pool(selected_pool, user2, stakeTokens)
+
+    // Wait some seconds after staked
+    console.log("wait 5 seconds...")
+    await waitSeconds(5);
+    console.log("wait ended...")
+    // stake by user1
+    stakeTokens = getRandomNumber(1, 10);
+    await stake_pool(selected_pool, user1, stakeTokens)
+
+    // Wait some seconds after staked
+    console.log("wait 5 seconds...")
+    await waitSeconds(5);
+    console.log("wait ended...")
+    // stake by user2
+    stakeTokens = getRandomNumber(1, 10);
+    await stake_pool(selected_pool, user2, stakeTokens)
   });
 
   it("User claims his reward, and assert reward transfer", async () => {
@@ -250,12 +265,12 @@ describe("staking-on-solana", () => {
       provider.connection,
       admin.payer,
       selected_pool.account.rewardMint,
-      user.publicKey
+      user1.publicKey
     );
 
     // Fetch the PDA of user info account
     const [userInfoPDA] = await web3.PublicKey.findProgramAddressSync(
-      [selected_pool.publicKey.toBuffer(), user.publicKey.toBuffer()],
+      [selected_pool.publicKey.toBuffer(), user1.publicKey.toBuffer()],
       program.programId
     );
 
@@ -266,7 +281,7 @@ describe("staking-on-solana", () => {
     await program.methods
       .claimReward()
       .accounts({
-        claimer: user.publicKey,
+        claimer: user1.publicKey,
         admin: admin.publicKey,
         userRewardTokenVault: userRewardTokenVault.address,
         poolRewardTokenVault: selected_pool.account.poolRewardTokenVault,
@@ -306,7 +321,7 @@ describe("staking-on-solana", () => {
       provider.connection,
       admin.payer,
       selected_pool.account.stakeMint,
-      user.publicKey
+      user1.publicKey
     );
 
     // Create a reward token account for the pool user
@@ -314,12 +329,12 @@ describe("staking-on-solana", () => {
       provider.connection,
       admin.payer,
       selected_pool.account.rewardMint,
-      user.publicKey
+      user1.publicKey
     );
 
     // Fetch the PDA of user info account
     const [userInfoPDA] = await web3.PublicKey.findProgramAddressSync(
-      [selected_pool.publicKey.toBuffer(), user.publicKey.toBuffer()],
+      [selected_pool.publicKey.toBuffer(), user1.publicKey.toBuffer()],
       program.programId
     );
     const user_info = await program.account.userInfo.fetch(userInfoPDA)
@@ -347,7 +362,7 @@ describe("staking-on-solana", () => {
     await program.methods
       .unstake(unstakeAmount)
       .accounts({
-        user: user.publicKey,
+        user: user1.publicKey,
         admin: admin.publicKey,
         poolConfigAccount: selected_pool.publicKey,
         poolStateAccount: selected_pool.account.stateAddr,
@@ -376,9 +391,7 @@ describe("staking-on-solana", () => {
 
   });
 
-  async function init_pool(poolId: string, duration, stakeDecimals, rewardDecimals, initialFunding, rewardPerSlot, stakeFee, unstakeFee) {
-    // Create staker wallet and airdrop    
-    const creator = await createRandomWalletAndAirdrop(provider, 2)
+  async function init_pool(deployer, duration, stakeFee, unstakeFee, initialFunding, rewardPerSlot, stakeDecimals, rewardDecimals) {
     // Create a new mint for mock stake token
     const stakeMint = await createRandomMint(provider, stakeDecimals)
     // Create a new mint for mock reward token
@@ -389,7 +402,7 @@ describe("staking-on-solana", () => {
       provider.connection,
       admin.payer,
       rewardMint,
-      creator.publicKey
+      deployer.publicKey
     );
 
     const fundingAmount = new BN(10 ** stakeDecimals * initialFunding)
@@ -420,9 +433,10 @@ describe("staking-on-solana", () => {
       admin.publicKey
     );
 
+    const poolId = "0"
     // Fetch the PDA of pool config account
     const [POOL_CONFIG_PDA] = await web3.PublicKey.findProgramAddressSync(
-      [Buffer.from(poolId), creator.publicKey.toBuffer()],
+      [Buffer.from(poolId), deployer.publicKey.toBuffer()],
       program.programId
     );
 
@@ -450,7 +464,7 @@ describe("staking-on-solana", () => {
         platform: platform_info_pda,
         poolState: poolStateAccount.publicKey,
         poolConfig: POOL_CONFIG_PDA,
-        creator: creator.publicKey,
+        creator: deployer.publicKey,
         treasury: treasury.publicKey,
         stakeMint: stakeMint,
         rewardMint: rewardMint,
@@ -460,7 +474,7 @@ describe("staking-on-solana", () => {
         systemProgram: web3.SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
-      .signers([creator, treasury, poolStateAccount])
+      .signers([deployer, treasury, poolStateAccount])
       .rpc();
 
     console.log(`Pool Init Transaction: https://explorer.solana.com/tx/${tx}?cluster=devnet`);
@@ -475,6 +489,85 @@ describe("staking-on-solana", () => {
       poolStateAccount,
       initialFunding
     };
+  }
+
+  async function stake_pool(pool_config, user, stakeTokens) {
+
+    // Get a stake token account for the pool user
+    const userStakeTokenVault = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      admin.payer,
+      pool_config.account.stakeMint,
+      user.publicKey
+    );
+
+    const userInitialAmount = new BN(10 ** pool_config.account.stakeDecimals * (stakeTokens + 1)); // Mint bit more than the staking amount
+    // Mint some mock stake token to the staker's account
+    await mintTo(
+      provider.connection,
+      admin.payer,
+      pool_config.account.stakeMint,
+      userStakeTokenVault.address,
+      admin.publicKey,
+      BigInt(userInitialAmount) // 20 tokens of mock USDC
+    );
+
+    // Create a reward token account for the pool user
+    const userRewardTokenVault = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      admin.payer,
+      pool_config.account.rewardMint,
+      user.publicKey
+    );
+
+    const stakeAmount = new BN(10 ** pool_config.account.stakeDecimals * stakeTokens);
+
+    // Fetch the PDA of pool config account
+    const [userInfoPDA] = await web3.PublicKey.findProgramAddressSync(
+      [pool_config.publicKey.toBuffer(), user.publicKey.toBuffer()],
+      program.programId
+    );
+
+    // Fetch the PDA of platform info account
+    const [platform_info_pda] = await web3.PublicKey.findProgramAddressSync(
+      [treasury.publicKey.toBuffer()],
+      program.programId
+    );
+
+    // Get a stake token account for the treasury
+    const treasuryStakeTokenVault = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      admin.payer,
+      pool_config.account.stakeMint,
+      treasury.publicKey
+    );
+
+    await program.methods
+      .stake(stakeAmount)
+      .accounts({
+        staker: user.publicKey,
+        admin: admin.publicKey,
+        platform: platform_info_pda,
+        userInfo: userInfoPDA,
+        userStakeTokenVault: userStakeTokenVault.address,
+        userRewardTokenVault: userRewardTokenVault.address,
+        poolStakeTokenVault: pool_config.account.poolStakeTokenVault,
+        poolRewardTokenVault: pool_config.account.poolRewardTokenVault,
+        treasuryStakeTokenVault: treasuryStakeTokenVault.address,
+        poolConfigAccount: pool_config.publicKey,
+        poolStateAccount: pool_config.account.stateAddr,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([user])
+      .rpc();
+
+    return {
+      userStakeTokenVault,
+      treasuryStakeTokenVault,
+      userInitialAmount,
+      stakeAmount
+    }
+
   }
 
 

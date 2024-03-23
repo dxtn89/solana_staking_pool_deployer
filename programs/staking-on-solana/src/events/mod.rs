@@ -1,15 +1,21 @@
 use anchor_lang::prelude::*;
 
 #[event]
-pub struct RewardsStop {
-    pub end_slot: u64,
-}
-
-#[event]
 pub struct NewStartAndEndSlots {
     pub start_slot: u64,
     pub end_slot: u64,
 }
+
+#[event]
+pub struct RewardsStop {
+    pub end_slot: u64,
+}
+
+// #[event]
+// pub struct RewardClaim {
+//     pub claimer: Pubkey,
+//     pub amount: u64,
+// }
 
 // #[event]
 // pub struct ChangeAuthorityEvent {

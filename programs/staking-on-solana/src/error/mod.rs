@@ -4,12 +4,24 @@ use anchor_lang::prelude::*;
 // (old Anchor 0.18 added 300 for user error codes)
 #[error_code]
 pub enum BrewStakingError {
-    #[msg("Pool was already started")]
+    #[msg("Invalid stake fee")]
+    InvalidStakeFee,
+
+    #[msg("Invalid unstake fee")]
+    InvalidUnstakeFee,
+
+    #[msg("Pool hasn't started yet")]
     PoolNotStarted,
+
+    #[msg("Pool was already started")]
+    PoolAlreadyStarted,
+
+    #[msg("Insufficient reward tokens")]
+    InsufficientReward,
 
     #[msg("All reward tokens have not been deposited")]
     RewardNotDeposited,
-
+    ////////////
     #[msg("Wrong reserve owner. Must be a system account")]
     WrongReserveOwner, // 6000 0x1770
 

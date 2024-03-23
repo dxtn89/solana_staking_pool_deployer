@@ -3,11 +3,24 @@ use anchor_spl::token::{ self, TokenAccount, Transfer };
 
 use crate::state::*;
 use crate::utils::*;
+use crate::error::*;
+use crate::events::*;
 
 pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
-    let pool_config = &ctx.accounts.pool_config_account;
+    let pool_config = &mut ctx.accounts.pool_config_account;
     let pool_state = &mut ctx.accounts.pool_state_account;
     let user_info = &mut ctx.accounts.user_info;
+
+    let clock = Clock::get()?;
+
+    msg!("current slot {}", clock.slot);
+    msg!("pool_config.start_slot {}", pool_config.start_slot);
+    msg!("pool_config.end_slot {}", pool_config.end_slot);
+
+    // require!(
+    //     pool_config.start_slot > 0 && pool_config.start_slot < clock.slot,
+    //     BrewStakingError::PoolNotStarted
+    // );
 
     let _ = update_pool(pool_config, pool_state);
 
@@ -21,6 +34,11 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
             user_info.reward_debt;
 
         if pending > 0 {
+            require!(
+                available_reward_tokens(pool_config, pool_state) >= pending,
+                BrewStakingError::InsufficientReward
+            );
+
             let cpi_accounts = Transfer {
                 from: ctx.accounts.pool_reward_token_vault.to_account_info(),
                 to: ctx.accounts.user_reward_token_vault.to_account_info(),
@@ -30,7 +48,17 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_ctx, pending)?;
 
+            // pool_state.total_earned = if pool_state.total_earned > pending {
+            //     pool_state.total_earned - pending
+            // } else {
+            //     0
+            // };
             pool_state.paid_rewards += pending;
+
+            // emit!(RewardClaim {
+            //     claimer: ctx.accounts.staker.key(),
+            //     amount: pending,
+            // });
         }
     }
 
@@ -45,7 +73,6 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
     token::transfer(cpi_ctx, stake_amount)?;
 
     // Transfer stake fee from pool to treasury
-    let platform = &ctx.accounts.platform;
     let stake_fee = (stake_amount * (pool_config.stake_fee as u64)) / PERCENT_PRECISION;
 
     let cpi_accounts = Transfer {

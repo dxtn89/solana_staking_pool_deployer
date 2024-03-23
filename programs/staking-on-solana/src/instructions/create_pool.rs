@@ -1,8 +1,9 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{ prelude::* };
 use anchor_spl::token::{ self, Mint, TokenAccount, Transfer };
 use anchor_lang::system_program;
 
 use crate::state::*;
+use crate::error::*;
 
 pub fn handler(
     ctx: Context<CreatePool>,
@@ -13,6 +14,9 @@ pub fn handler(
     reward_per_slot: u64,
     duration: u16
 ) -> Result<()> {
+    require!(stake_fee <= MAX_FEE, BrewStakingError::InvalidStakeFee);
+    require!(unstake_fee <= MAX_FEE, BrewStakingError::InvalidUnstakeFee);
+
     let pool_config = &mut ctx.accounts.pool_config;
     pool_config.owner = ctx.accounts.creator.key();
     pool_config.pool_id = pool_id;
