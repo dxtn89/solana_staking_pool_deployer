@@ -3,11 +3,16 @@ use anchor_spl::token::{ self, TokenAccount, Transfer };
 
 use crate::state::*;
 use crate::utils::*;
+use crate::error::*;
+use crate::events::*;
 
 pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
     let pool_config = &ctx.accounts.pool_config_account;
     let pool_state = &mut ctx.accounts.pool_state_account;
     let user_info = &mut ctx.accounts.user_info;
+
+    require!(unstake_amount > 0, BrewStakingError::UnstakeAmountTooSmall);
+    require!(user_info.staked_amount > unstake_amount, BrewStakingError::UnstakeAmountTooHigh);
 
     let _ = update_pool(pool_config, pool_state);
 
@@ -21,6 +26,11 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
             user_info.reward_debt;
 
         if pending > 0 {
+            require!(
+                available_reward_tokens(pool_config, pool_state) >= pending,
+                BrewStakingError::InsufficientReward
+            );
+
             let cpi_accounts = Transfer {
                 from: ctx.accounts.pool_reward_token_vault.to_account_info(),
                 to: ctx.accounts.user_reward_token_vault.to_account_info(),
@@ -30,7 +40,17 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_ctx, pending)?;
 
+            pool_state.total_earned = if pool_state.total_earned > pending {
+                pool_state.total_earned - pending
+            } else {
+                0
+            };
             pool_state.paid_rewards += pending;
+
+            emit!(RewardClaim {
+                claimer: ctx.accounts.user.key(),
+                amount: pending,
+            });
         }
     }
 
@@ -39,7 +59,6 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
         real_amount = user_info.staked_amount;
     }
     // Transfer unstake fee from pool to treasury
-    let platform = &ctx.accounts.platform;
     let unstake_fee = (real_amount * (pool_config.unstake_fee as u64)) / PERCENT_PRECISION;
 
     let cpi_accounts = Transfer {

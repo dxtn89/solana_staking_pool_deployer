@@ -11,11 +11,11 @@ pub struct RewardsStop {
     pub end_slot: u64,
 }
 
-// #[event]
-// pub struct RewardClaim {
-//     pub claimer: Pubkey,
-//     pub amount: u64,
-// }
+#[event]
+pub struct RewardClaim {
+    pub claimer: Pubkey,
+    pub amount: u64,
+}
 
 // #[event]
 // pub struct ChangeAuthorityEvent {

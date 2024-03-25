@@ -21,6 +21,13 @@ pub enum BrewStakingError {
 
     #[msg("All reward tokens have not been deposited")]
     RewardNotDeposited,
+
+    #[msg("Amount should be greator than 0")]
+    UnstakeAmountTooSmall,
+
+    #[msg("Amount to withdraw too high")]
+    UnstakeAmountTooHigh,
+
     ////////////
     #[msg("Wrong reserve owner. Must be a system account")]
     WrongReserveOwner, // 6000 0x1770

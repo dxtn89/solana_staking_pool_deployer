@@ -7,12 +7,12 @@ use crate::error::*;
 use crate::events::*;
 
 pub fn handler(ctx: Context<StartReward>) -> Result<()> {
-    msg!("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx");
-
     let pool_config = &mut ctx.accounts.pool_config_account;
     let pool_state = &mut ctx.accounts.pool_state_account;
 
     require!(pool_config.start_slot == 0, BrewStakingError::PoolAlreadyStarted);
+
+    msg!("insufficient rewadrs {}", insufficient_rewards(pool_config, pool_state));
     // require!(
     //     insufficient_rewards(pool_config, pool_state) == 0,
     //     BrewStakingError::RewardNotDeposited

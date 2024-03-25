@@ -6,7 +6,7 @@ use crate::utils::*;
 use crate::error::*;
 use crate::events::*;
 
-pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<CompoundReward>) -> Result<()> {
     let pool_config = &mut ctx.accounts.pool_config_account;
     let pool_state = &mut ctx.accounts.pool_state_account;
     let user_info = &mut ctx.accounts.user_info;
@@ -70,34 +70,34 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    token::transfer(cpi_ctx, stake_amount)?;
+    // token::transfer(cpi_ctx, stake_amount)?;
 
-    // Transfer stake fee from pool to treasury
-    let stake_fee = (stake_amount * (pool_config.stake_fee as u64)) / PERCENT_PRECISION;
+    // // Transfer stake fee from pool to treasury
+    // let stake_fee = (stake_amount * (pool_config.stake_fee as u64)) / PERCENT_PRECISION;
 
-    let cpi_accounts = Transfer {
-        from: ctx.accounts.pool_stake_token_vault.to_account_info(),
-        to: ctx.accounts.treasury_stake_token_vault.to_account_info(),
-        authority: ctx.accounts.admin.to_account_info(),
-    };
-    let cpi_program = ctx.accounts.token_program.to_account_info();
-    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    token::transfer(cpi_ctx, stake_fee)?;
+    // let cpi_accounts = Transfer {
+    //     from: ctx.accounts.pool_stake_token_vault.to_account_info(),
+    //     to: ctx.accounts.treasury_stake_token_vault.to_account_info(),
+    //     authority: ctx.accounts.admin.to_account_info(),
+    // };
+    // let cpi_program = ctx.accounts.token_program.to_account_info();
+    // let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    // token::transfer(cpi_ctx, stake_fee)?;
 
     // Update user and pool info
-    let real_amount = stake_amount - stake_fee;
+    // let real_amount = stake_amount - stake_fee;
 
-    user_info.staked_amount += real_amount;
-    user_info.reward_debt =
-        (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor;
+    // user_info.staked_amount += real_amount;
+    // user_info.reward_debt =
+    //     (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor;
 
-    pool_state.total_staked += real_amount;
+    // pool_state.total_staked += real_amount;
 
     Ok(())
 }
 
 #[derive(Accounts)]
-pub struct Stake<'info> {
+pub struct CompoundReward<'info> {
     #[account(mut)]
     pub staker: Signer<'info>,
 
@@ -140,14 +140,3 @@ pub struct Stake<'info> {
 
     pub token_program: Program<'info, token::Token>,
 }
-
-// impl<'info> Stake<'info> {
-//     fn into_transfer_to_pool_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-//         let cpi_accounts = Transfer {
-//             from: self.staker_stake_token_vault.to_account_info(),
-//             to: self.pool_stake_token_vault.to_account_info(),
-//             authority: self.staker.to_account_info(),
-//         };
-//         CpiContext::new(self.token_program.to_account_info(), cpi_accounts)
-//     }
-// }

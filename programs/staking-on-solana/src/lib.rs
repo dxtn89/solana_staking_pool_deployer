@@ -8,7 +8,7 @@ mod utils;
 mod error;
 mod events;
 
-declare_id!("Ek66VEcmgipM8Npz3o5iF4Ct5swHGp6k9snfPKqmupzk");
+declare_id!("22VFe4wjjmrvUcz2JhzLnaepnu7y876qgh8ivWqmx7SU");
 
 #[program]
 pub mod staking_on_solana {
@@ -60,5 +60,9 @@ pub mod staking_on_solana {
 
     pub fn stop_reward(ctx: Context<StopReward>) -> Result<()> {
         instructions::stop_reward::handler(ctx)
+    }
+
+    pub fn compound_reward(ctx: Context<CompoundReward>) -> Result<()> {
+        instructions::compound_reward::handler(ctx)
     }
 }
