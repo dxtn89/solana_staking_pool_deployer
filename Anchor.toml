@@ -4,17 +4,17 @@
 seeds = false
 skip-lint = false
 
-[programs.localnet]
-staking_on_solana = "22VFe4wjjmrvUcz2JhzLnaepnu7y876qgh8ivWqmx7SU"
-
 [programs.devnet]
-staking_on_solana = "22VFe4wjjmrvUcz2JhzLnaepnu7y876qgh8ivWqmx7SU"
+staking_on_solana = "5Af8446iFooBfKv8KqTTqSwxRrZxEH7ZBzZqf2e1ohkM"
+
+[programs.localnet]
+staking_on_solana = "5Af8446iFooBfKv8KqTTqSwxRrZxEH7ZBzZqf2e1ohkM"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet" # Localnet, devnet
+cluster = "Localnet"
 wallet = "/home/letho/.config/solana/id.json"
 
 [scripts]
