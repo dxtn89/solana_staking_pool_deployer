@@ -2376,6 +2376,8 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "raydium-contract-instructions",
+ "spl-associated-token-account 2.3.1",
+ "spl-token 4.0.1",
 ]
 
 [[package]]

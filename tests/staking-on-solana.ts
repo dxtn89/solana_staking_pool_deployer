@@ -444,6 +444,16 @@ describe("staking-on-solana", () => {
 
     console.log(`Pool PDA: ${POOL_CONFIG_PDA.toString()}`);
 
+    // const [poolStakeTokenVault] = await web3.PublicKey.findProgramAddressSync(
+    //   [POOL_CONFIG_PDA.toBuffer(), stakeMint.toBuffer()],
+    //   program.programId
+    // );
+
+    // const [poolRewardTokenVault] = await web3.PublicKey.findProgramAddressSync(
+    //   [POOL_CONFIG_PDA.toBuffer(), rewardMint.toBuffer()],
+    //   program.programId
+    // );
+
     // Pool State Account
     const poolStateAccount = web3.Keypair.generate();
 
@@ -464,20 +474,20 @@ describe("staking-on-solana", () => {
       )
       .accounts({
         platform: platform_info_pda,
-        poolState: poolStateAccount.publicKey,
-        poolConfig: POOL_CONFIG_PDA,
+        poolStateAccount: poolStateAccount.publicKey,
+        poolConfigAccount: POOL_CONFIG_PDA,
         creator: deployer.publicKey,
         treasury: treasury.publicKey,
         stakeMint: stakeMint,
         rewardMint: rewardMint,
         poolStakeTokenVault: poolStakeTokenVault.address,
-        creatorRewardTokenVault: creatorRewardTokenVault.address,
         poolRewardTokenVault: poolRewardTokenVault.address,
+        creatorRewardTokenVault: creatorRewardTokenVault.address,
         systemProgram: web3.SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .signers([deployer, treasury, poolStateAccount])
-      .rpc();
+      .rpc().catch(e => console.error(e));
 
     console.log(`Pool Init Transaction: https://explorer.solana.com/tx/${tx}?cluster=devnet`);
 

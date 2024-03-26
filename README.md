@@ -18,5 +18,6 @@
     Then, in a separate terminal window, run the tests:
 
     ```bash
+    yarn
     anchor test
     ```

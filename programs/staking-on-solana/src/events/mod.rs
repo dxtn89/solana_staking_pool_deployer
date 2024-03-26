@@ -12,11 +12,22 @@ pub struct RewardsStop {
 }
 
 #[event]
+pub struct Deposit {
+    pub staker: Pubkey,
+    pub amount: u64,
+}
+
+#[event]
 pub struct RewardClaim {
     pub claimer: Pubkey,
     pub amount: u64,
 }
 
+#[event]
+pub struct Compound {
+    pub compounder: Pubkey,
+    pub amount: u64,
+}
 // #[event]
 // pub struct ChangeAuthorityEvent {
 //     pub state: Pubkey,

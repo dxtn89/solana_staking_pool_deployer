@@ -93,6 +93,11 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
 
     pool_state.total_staked += real_amount;
 
+    emit!(Deposit {
+        staker: ctx.accounts.staker.key(),
+        amount: real_amount,
+    });
+
     Ok(())
 }
 
