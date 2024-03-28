@@ -40,6 +40,8 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_ctx, pending)?;
 
+            pool_state.reward_amount -= pending;
+
             pool_state.total_earned = if pool_state.total_earned > pending {
                 pool_state.total_earned - pending
             } else {
@@ -63,7 +65,7 @@ pub fn handler(ctx: Context<Unstake>, unstake_amount: u64) -> Result<()> {
 
     let cpi_accounts = Transfer {
         from: ctx.accounts.pool_stake_token_vault.to_account_info(),
-        to: ctx.accounts.treasury_stake_token_vault.to_account_info(),
+        to: ctx.accounts.creator_stake_token_vault.to_account_info(),
         authority: ctx.accounts.admin.to_account_info(),
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
@@ -120,6 +122,9 @@ pub struct Unstake<'info> {
 
     #[account(mut)]
     pub pool_reward_token_vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub creator_stake_token_vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub treasury_stake_token_vault: Account<'info, TokenAccount>,

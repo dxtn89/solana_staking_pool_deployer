@@ -65,4 +65,8 @@ pub mod staking_on_solana {
     pub fn compound_reward(ctx: Context<CompoundReward>) -> Result<()> {
         instructions::compound_reward::handler(ctx)
     }
+
+    pub fn pending_reward(ctx: Context<PendingReward>) -> Result<u64> {
+        instructions::pending_reward::handler(ctx)
+    }
 }

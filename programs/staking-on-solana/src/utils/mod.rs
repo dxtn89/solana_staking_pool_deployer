@@ -1,4 +1,4 @@
-use anchor_lang::{ prelude::*, solana_program::clock };
+use anchor_lang::prelude::*;
 // use anchor_spl::token::{ self, Transfer };
 // use anchor_spl::token_interface::TokenAccount;
 
@@ -10,12 +10,12 @@ pub fn update_pool<'info>(
     pool_state: &mut Account<'info, PoolState>
 ) -> Result<()> {
     let clock = Clock::get()?;
-    msg!("millisecons slot {}", clock::DEFAULT_MS_PER_SLOT);
-
+    msg!("@@update pool start");
+    msg!("@@current slot {}", clock.slot);
     if clock.slot <= pool_state.last_reward_slot || pool_state.last_reward_slot == 0 {
         return Ok(());
     }
-
+    msg!("@@pool_state.total_staked {}", pool_state.total_staked);
     if pool_state.total_staked == 0 {
         pool_state.last_reward_slot = clock.slot;
         return Ok(());
@@ -25,23 +25,20 @@ pub fn update_pool<'info>(
     let reward = multiplier * pool_config.reward_per_slot;
     let precision_factor = get_precision_factor(pool_config);
 
+    msg!("@@multiplier {}", multiplier);
+    msg!("@@pool_config.reward_per_slot {}", pool_config.reward_per_slot);
+    msg!("@@reward {}", reward);
+    msg!("@@precision_factor {}", precision_factor);
+
     pool_state.acc_token_per_share += (reward * precision_factor) / pool_state.total_staked;
 
     pool_state.last_reward_slot = clock.slot;
     pool_state.should_total_paid += reward;
 
-    msg!("current slot {}", clock.slot);
-    msg!("pool_state.last_reward_slot {}", pool_state.last_reward_slot);
-    msg!("pool_config.end_slot {}", pool_config.end_slot);
-    msg!("multiplier {}", multiplier);
-    msg!("pool_config.reward_per_slot {}", pool_config.reward_per_slot);
-    msg!("reward {}", reward);
-    msg!("precision_factor {}", precision_factor);
-    msg!("pool_state.total_staked {}", pool_state.total_staked);
-    msg!("pool_state.acc_token_per_share {}", pool_state.acc_token_per_share);
-    msg!("pool_state.last_reward_slot {}", pool_state.last_reward_slot);
-    msg!("pool_state.should_total_paide {}", pool_state.should_total_paid);
-
+    msg!("@@pool_state.acc_token_per_share {}", pool_state.acc_token_per_share);
+    msg!("@@pool_state.last_reward_slot {}", pool_state.last_reward_slot);
+    msg!("@@pool_state.should_total_paide {}", pool_state.should_total_paid);
+    msg!("@@update pool end");
     Ok(())
 }
 

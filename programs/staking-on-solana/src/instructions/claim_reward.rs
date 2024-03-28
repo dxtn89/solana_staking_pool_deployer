@@ -39,6 +39,8 @@ pub fn handler(ctx: Context<ClaimReward>) -> Result<()> {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         token::transfer(cpi_ctx, pending)?;
 
+        pool_state.reward_amount -= pending;
+
         pool_state.total_earned = if pool_state.total_earned > pending {
             pool_state.total_earned - pending
         } else {

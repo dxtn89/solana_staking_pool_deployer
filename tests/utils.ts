@@ -1,4 +1,12 @@
-import { web3 } from "@coral-xyz/anchor";
+import {
+  Keypair,
+  PublicKey,
+  Connection,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+  SYSVAR_RENT_PUBKEY,
+} from '@solana/web3.js'
 import {
   TOKEN_PROGRAM_ID,
   MintLayout,
@@ -10,11 +18,11 @@ import { LiquidityAssociatedPoolKeys } from "@raydium-io/raydium-sdk/src/liquidi
 
 // Create a Random Wallet and airrop SOL
 export async function createRandomWalletAndAirdrop(provider, airdropAmount) {
-  const wallet = web3.Keypair.generate();
+  const wallet = Keypair.generate();
 
   const signature = await provider.connection.requestAirdrop(
     wallet.publicKey,
-    airdropAmount * web3.LAMPORTS_PER_SOL
+    airdropAmount * LAMPORTS_PER_SOL
   );
   // Fetch the latest blockhash
   const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash();
@@ -74,11 +82,11 @@ export async function getAssociatedPoolKeys({
   baseMint,
   quoteMint,
 }: {
-  programId: web3.PublicKey;
-  serumProgramId: web3.PublicKey;
-  marketId: web3.PublicKey;
-  baseMint: web3.PublicKey;
-  quoteMint: web3.PublicKey;
+  programId: PublicKey;
+  serumProgramId: PublicKey;
+  marketId: PublicKey;
+  baseMint: PublicKey;
+  quoteMint: PublicKey;
 }): Promise<LiquidityAssociatedPoolKeys> {
 
   const id = await Liquidity.getAssociatedId({ programId, marketId });
@@ -125,8 +133,8 @@ export async function getAssociatedPoolKeys({
 
 export async function getMarket(conn: any, marketAddress: string, serumProgramId: string): Promise<Market> {
   try {
-    const marketAddressPubKey = new web3.PublicKey(marketAddress)
-    const market = await Market.load(conn, marketAddressPubKey, undefined, new web3.PublicKey(serumProgramId))
+    const marketAddressPubKey = new PublicKey(marketAddress)
+    const market = await Market.load(conn, marketAddressPubKey, undefined, new PublicKey(serumProgramId))
     return market
   } catch (error: any) {
     console.log("get market err: ", error)
@@ -135,20 +143,20 @@ export async function getMarket(conn: any, marketAddress: string, serumProgramId
 }
 
 export class Market extends MarketSerum {
-  public baseVault: web3.PublicKey | null = null
-  public quoteVault: web3.PublicKey | null = null
-  public requestQueue: web3.PublicKey | null = null
-  public eventQueue: web3.PublicKey | null = null
-  public bids: web3.PublicKey | null = null
-  public asks: web3.PublicKey | null = null
+  public baseVault: PublicKey | null = null
+  public quoteVault: PublicKey | null = null
+  public requestQueue: PublicKey | null = null
+  public eventQueue: PublicKey | null = null
+  public bids: PublicKey | null = null
+  public asks: PublicKey | null = null
   public baseLotSize: number = 0
   public quoteLotSize: number = 0
   // private _decoded: any
-  public quoteMint: web3.PublicKey | null = null
-  public baseMint: web3.PublicKey | null = null
+  public quoteMint: PublicKey | null = null
+  public baseMint: PublicKey | null = null
   public vaultSignerNonce: Number | null = null
 
-  static async load(connection: web3.Connection, address: web3.PublicKey, options: any = {}, programId: web3.PublicKey) {
+  static async load(connection: Connection, address: PublicKey, options: any = {}, programId: PublicKey) {
     const { owner, data } = throwIfNull(await connection.getAccountInfo(address), 'Market not found')
     if (!owner.equals(programId)) {
       throw new Error('Address not owned by program: ' + owner.toBase58())
@@ -179,7 +187,7 @@ export class Market extends MarketSerum {
   }
 }
 
-export async function getMintDecimals(connection: web3.Connection, mint: web3.PublicKey): Promise<number> {
+export async function getMintDecimals(connection: Connection, mint: PublicKey): Promise<number> {
   const { data } = throwIfNull(await connection.getAccountInfo(mint), 'mint not found')
   const { decimals } = SPL_MINT_LAYOUT.decode(data)
   return decimals

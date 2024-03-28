@@ -6,8 +6,9 @@
     "dependencies": {
         "@coral-xyz/anchor": "^0.29.0",
         "@project-serum/serum": "^0.13.64",
+        "@raydium-io/raydium-sdk": "1.1.0-beta.1",
         "@solana/spl-token": "^0.4.0",
-        "@raydium-io/raydium-sdk": "1.1.0-beta.1"
+        "@solana/web3.js": "^1.91.1"
     },
     "devDependencies": {
         "@types/bn.js": "^5.1.0",

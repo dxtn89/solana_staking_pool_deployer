@@ -53,9 +53,9 @@ pub fn handler(ctx: Context<CompoundReward>) -> Result<()> {
         // swap stake token to reward token
         if pool_config.stake_mint != pool_config.reward_mint {
             pending = 0;
-            let minimum_amount_out = 0;
+            let minimum_amount_out = 1;
             let ix = amm_instruction::swap_base_in(
-                ctx.program_id,
+                &amm_instruction::ID,
                 ctx.accounts.amm.key,
                 ctx.accounts.amm_authority.key,
                 ctx.accounts.amm_open_orders.key,
@@ -70,38 +70,38 @@ pub fn handler(ctx: Context<CompoundReward>) -> Result<()> {
                 ctx.accounts.serum_coin_vault_account.key,
                 ctx.accounts.serum_pc_vault_account.key,
                 ctx.accounts.serum_vault_signer.key,
-                ctx.accounts.user_source_token_account.key,
-                ctx.accounts.user_destination_token_account.key,
+                &ctx.accounts.pool_reward_token_vault.key(),
+                &ctx.accounts.pool_stake_token_vault.key(),
                 ctx.accounts.user_source_owner.key,
                 pending,
                 minimum_amount_out
             )?;
-            // solana_program::program::invoke_signed(
-            //     &ix,
-            //     // &ToAccountInfos::to_account_infos(&ctx),
-            //     &[
-            //         ctx.accounts.amm.clone(),
-            //         ctx.accounts.amm_authority.clone(),
-            //         ctx.accounts.amm_open_orders.clone(),
-            //         ctx.accounts.amm_target_orders.clone(),
-            //         ctx.accounts.pool_coin_token_account.clone(),
-            //         ctx.accounts.pool_pc_token_account.clone(),
-            //         ctx.accounts.serum_program.clone(),
-            //         ctx.accounts.serum_market.clone(),
-            //         ctx.accounts.serum_bids.clone(),
-            //         ctx.accounts.serum_asks.clone(),
-            //         ctx.accounts.serum_event_queue.clone(),
-            //         ctx.accounts.serum_coin_vault_account.clone(),
-            //         ctx.accounts.serum_pc_vault_account.clone(),
-            //         ctx.accounts.serum_vault_signer.clone(),
-            //         ctx.accounts.user_source_token_account.clone(),
-            //         ctx.accounts.user_destination_token_account.clone(),
-            //         ctx.accounts.user_source_owner.clone(),
-            //         ctx.accounts.spl_token_program.clone(),
-            //     ],
-            //     &[&[b"vault", ctx.accounts.user.key.as_ref(), &[ctx.bumps.]]]
-            //     // ctx.bumps.
-            // )?;
+            solana_program::program::invoke_signed(
+                &ix,
+                // &ToAccountInfos::to_account_infos(&ctx),
+                &[
+                    ctx.accounts.amm.clone(),
+                    ctx.accounts.amm_authority.clone(),
+                    ctx.accounts.amm_open_orders.clone(),
+                    ctx.accounts.amm_target_orders.clone(),
+                    ctx.accounts.pool_coin_token_account.clone(),
+                    ctx.accounts.pool_pc_token_account.clone(),
+                    ctx.accounts.serum_program.clone(),
+                    ctx.accounts.serum_market.clone(),
+                    ctx.accounts.serum_bids.clone(),
+                    ctx.accounts.serum_asks.clone(),
+                    ctx.accounts.serum_event_queue.clone(),
+                    ctx.accounts.serum_coin_vault_account.clone(),
+                    ctx.accounts.serum_pc_vault_account.clone(),
+                    ctx.accounts.serum_vault_signer.clone(),
+                    ctx.accounts.pool_reward_token_vault.to_account_info(),
+                    ctx.accounts.pool_stake_token_vault.to_account_info(),
+                    ctx.accounts.user_source_owner.clone(),
+                    ctx.accounts.spl_token_program.clone(),
+                ],
+                &[&[ctx.accounts.user.key.as_ref()]]
+                // ctx.bumps.
+            )?;
         }
 
         pool_state.total_staked += pending;
@@ -127,13 +127,6 @@ pub struct CompoundReward<'info> {
     #[account(mut)]
     pub admin: AccountInfo<'info>,
 
-    // #[account(
-    //     init_if_needed,
-    //     payer = user,
-    //     space = USER_INFO_SIZE,
-    //     seeds = [pool_config_account.key().as_ref(), user.key().as_ref()],
-    //     bump
-    // )]
     #[account(mut)]
     pub user_info: Box<Account<'info, UserInfo>>,
 
@@ -143,21 +136,15 @@ pub struct CompoundReward<'info> {
     pub pool_state_account: Box<Account<'info, PoolState>>,
 
     #[account(mut)]
-    pub user_stake_token_vault: Box<Account<'info, TokenAccount>>,
-
-    #[account(mut)]
-    pub user_reward_token_vault: Box<Account<'info, TokenAccount>>,
-
-    #[account(mut)]
     pub pool_stake_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
     pub pool_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
-    #[account(mut)]
-    pub treasury_stake_token_vault: Box<Account<'info, TokenAccount>>,
+    // #[account(mut)]
+    // pub treasury_stake_token_vault: Box<Account<'info, TokenAccount>>,
 
-    pub system_program: Program<'info, System>,
+    // pub system_program: Program<'info, System>,
 
     pub token_program: Program<'info, token::Token>,
 
@@ -203,11 +190,11 @@ pub struct CompoundReward<'info> {
     #[account(mut)]
     pub serum_vault_signer: AccountInfo<'info>,
     /// CHECK: Safe. user source token Account. user Account to swap from.
-    #[account(mut)]
-    pub user_source_token_account: AccountInfo<'info>,
-    /// CHECK: Safe. user destination token Account. user Account to swap to.
-    #[account(mut)]
-    pub user_destination_token_account: AccountInfo<'info>,
+    // #[account(mut)]
+    // pub user_source_token_account: AccountInfo<'info>,
+    // /// CHECK: Safe. user destination token Account. user Account to swap to.
+    // #[account(mut)]
+    // pub user_destination_token_account: AccountInfo<'info>,
     /// CHECK: Safe. user owner Account
     #[account(signer)]
     pub user_source_owner: AccountInfo<'info>,

@@ -1,10 +1,9 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::clock;
 use anchor_spl::token::{ self, TokenAccount, Transfer };
 
 use crate::state::*;
 use crate::utils::*;
-use crate::error::*;
+// use crate::error::*;
 use crate::events::*;
 
 pub fn handler(ctx: Context<StopReward>) -> Result<()> {

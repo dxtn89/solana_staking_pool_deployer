@@ -13,9 +13,7 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
 
     let clock = Clock::get()?;
 
-    msg!("current slot {}", clock.slot);
-    msg!("pool_config.start_slot {}", pool_config.start_slot);
-    msg!("pool_config.end_slot {}", pool_config.end_slot);
+    msg!("@current slot {}", clock.slot);
 
     require!(
         pool_config.start_slot > 0 && pool_config.start_slot < clock.slot,
@@ -25,13 +23,19 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
     let _ = update_pool(pool_config, pool_state);
 
     let precision_factor = get_precision_factor(pool_config);
+    msg!("@precision_factor :  {}", precision_factor);
+    msg!("@user_info.staked_amount :  {}", user_info.staked_amount);
 
     // If user already staked before
     if user_info.staked_amount > 0 {
+        msg!("@@@ user staked before, claim reward");
         // Transfer the user his reward so far
         let pending =
             (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor -
             user_info.reward_debt;
+        msg!("@@@acc_token_per_share :  {}", pool_state.acc_token_per_share);
+        msg!("@@@reward_debt :  {}", user_info.reward_debt);
+        msg!("@@@pending :  {}", pending);
 
         if pending > 0 {
             require!(
@@ -48,13 +52,18 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_ctx, pending)?;
 
+            pool_state.reward_amount -= pending;
+
+            msg!("@@@total_earned before :  {}", pool_state.total_earned);
             pool_state.total_earned = if pool_state.total_earned > pending {
                 pool_state.total_earned - pending
             } else {
                 0
             };
+            msg!("@@@total_earned after :  {}", pool_state.total_earned);
+            msg!("@@@paid_rewards before :  {}", pool_state.paid_rewards);
             pool_state.paid_rewards += pending;
-
+            msg!("@@@paid_rewards after :  {}", pool_state.paid_rewards);
             emit!(RewardClaim {
                 claimer: ctx.accounts.staker.key(),
                 amount: pending,
@@ -72,12 +81,12 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
     token::transfer(cpi_ctx, stake_amount)?;
 
-    // Transfer stake fee from pool to treasury
+    // Transfer stake fee from pool to pool owner
     let stake_fee = (stake_amount * (pool_config.stake_fee as u64)) / PERCENT_PRECISION;
 
     let cpi_accounts = Transfer {
         from: ctx.accounts.pool_stake_token_vault.to_account_info(),
-        to: ctx.accounts.treasury_stake_token_vault.to_account_info(),
+        to: ctx.accounts.creator_stake_token_vault.to_account_info(),
         authority: ctx.accounts.admin.to_account_info(),
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
@@ -85,14 +94,18 @@ pub fn handler(ctx: Context<Stake>, stake_amount: u64) -> Result<()> {
     token::transfer(cpi_ctx, stake_fee)?;
 
     // Update user and pool info
+    msg!("@stake_amount :  {}", stake_amount);
+    msg!("@stake_fee :  {}", stake_fee);
     let real_amount = stake_amount - stake_fee;
 
     user_info.staked_amount += real_amount;
+    msg!("@user_info.staked_amount :  {}", user_info.staked_amount);
     user_info.reward_debt =
         (user_info.staked_amount * pool_state.acc_token_per_share) / precision_factor;
-
+    msg!("@pool_state.acc_token_per_share :  {}", pool_state.acc_token_per_share);
+    msg!("@user_info.reward_debt :  {}", user_info.reward_debt);
     pool_state.total_staked += real_amount;
-
+    msg!("@pool_state.total_staked :  {}", pool_state.total_staked);
     emit!(Deposit {
         staker: ctx.accounts.staker.key(),
         amount: real_amount,
@@ -121,6 +134,7 @@ pub struct Stake<'info> {
 
     pub platform: Account<'info, PlatformInfo>,
 
+    #[account(mut)]
     pub pool_config_account: Account<'info, PoolConfig>,
 
     #[account(mut)]
@@ -137,6 +151,9 @@ pub struct Stake<'info> {
 
     #[account(mut)]
     pub pool_reward_token_vault: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub creator_stake_token_vault: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub treasury_stake_token_vault: Account<'info, TokenAccount>,

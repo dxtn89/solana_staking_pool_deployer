@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{ self, Mint, TokenAccount, Transfer };
 use anchor_lang::system_program;
-use spl_associated_token_account::get_associated_token_address;
+// use spl_associated_token_account::{ get_associated_token_address, create_associated_token_account };
 
 use crate::state::*;
 use crate::error::*;
@@ -46,7 +46,7 @@ pub fn handler(
 
     // Transfer reward token from creator to pool account
     let cpi_accounts = Transfer {
-        // from: ctx.accounts.creator_reward_token_vault.to_account_info(),
+        // from: creator_reward_token_vault.,
         from: ctx.accounts.creator_reward_token_vault.to_account_info(),
         to: ctx.accounts.pool_reward_token_vault.to_account_info(),
         authority: ctx.accounts.creator.to_account_info(),
@@ -84,12 +84,12 @@ pub struct CreatePool<'info> {
         seeds = [pool_id.as_bytes().as_ref(), creator.key().as_ref()],
         bump
     )]
-    pub pool_config_account: Account<'info, PoolConfig>,
+    pub pool_config_account: Box<Account<'info, PoolConfig>>,
 
     #[account(init, payer = creator, space = POOL_STATE_SIZE)]
-    pub pool_state_account: Account<'info, PoolState>,
+    pub pool_state_account: Box<Account<'info, PoolState>>,
 
-    pub platform: Account<'info, PlatformInfo>,
+    pub platform: Box<Account<'info, PlatformInfo>>,
 
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -97,9 +97,9 @@ pub struct CreatePool<'info> {
     #[account(mut)]
     pub treasury: Signer<'info>,
 
-    pub stake_mint: Account<'info, Mint>,
+    pub stake_mint: Box<Account<'info, Mint>>,
 
-    pub reward_mint: Account<'info, Mint>,
+    pub reward_mint: Box<Account<'info, Mint>>,
 
     // #[account(
     //     init,
@@ -110,7 +110,7 @@ pub struct CreatePool<'info> {
     //     bump
     // )]
     #[account(mut)]
-    pub pool_stake_token_vault: Account<'info, TokenAccount>,
+    pub pool_stake_token_vault: Box<Account<'info, TokenAccount>>,
 
     // #[account(
     //     init,
@@ -121,10 +121,10 @@ pub struct CreatePool<'info> {
     //     bump
     // )]
     #[account(mut)]
-    pub pool_reward_token_vault: Account<'info, TokenAccount>,
+    pub pool_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
-    pub creator_reward_token_vault: Account<'info, TokenAccount>,
+    pub creator_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     pub system_program: Program<'info, System>,
 

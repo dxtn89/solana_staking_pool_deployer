@@ -6,6 +6,7 @@ pub mod compound_reward;
 pub mod claim_reward;
 pub mod start_reward;
 pub mod stop_reward;
+pub mod pending_reward;
 
 pub use initialize::*;
 pub use create_pool::*;
@@ -15,3 +16,4 @@ pub use compound_reward::*;
 pub use claim_reward::*;
 pub use start_reward::*;
 pub use stop_reward::*;
+pub use pending_reward::*;
